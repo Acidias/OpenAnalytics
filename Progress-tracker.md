@@ -5,15 +5,15 @@
 ## Phase 1: Foundation
 
 ### Shared Types (`packages/shared/`)
-- [ ] Event types (TrackingEvent, PageviewEvent, PageleaveEvent, HeartbeatEvent, etc.)
-- [ ] Session types (Session, SessionTimeline, SessionEvent)
-- [ ] Analytics types (PageStats, SiteOverview, ReferrerStats, GeoStats, DeviceStats)
-- [ ] Funnel types (Funnel, FunnelStep, FunnelAnalysis)
-- [ ] Goal types (Goal, GoalCompletion)
-- [ ] Auto-track types (AutoTrackRule, SiteConfig)
-- [ ] API types (AnalyticsQuery, DateRange, ApiResponse)
-- [ ] Zod validation schemas
-- [ ] Package builds and exports correctly
+- [x] Event types (TrackingEvent, PageviewEvent, PageleaveEvent, HeartbeatEvent, etc.)
+- [x] Session types (Session, SessionTimeline, SessionEvent)
+- [x] Analytics types (PageStats, SiteOverview, ReferrerStats, GeoStats, DeviceStats)
+- [x] Funnel types (Funnel, FunnelStep, FunnelAnalysis)
+- [x] Goal types (Goal, GoalCompletion)
+- [x] Auto-track types (AutoTrackRule, SiteConfig)
+- [x] API types (AnalyticsQuery, DateRange, ApiResponse)
+- [x] Zod validation schemas
+- [x] Package builds and exports correctly
 
 ### Database Schema (`packages/api/`)
 - [ ] SQL migration files (users, sites, events, funnels, goals, auto_track_rules)
@@ -89,3 +89,4 @@
 | Time | Agent | Action | Commit |
 |------|-------|--------|--------|
 | 2026-02-21 04:54 | tracker | Built full tracker script: all features from TECHNICAL_PLAN.md. 2556 bytes raw, 1247 bytes gzipped. | (see below) |
+| 2026-02-21 04:55 | shared-types | Built @openanalytics/shared: all types, Zod schemas, constants. tsc passes. | (see below) |
