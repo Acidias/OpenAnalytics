@@ -1,27 +1,31 @@
-# @simple-analytics/dashboard
+# @openanalytics/dashboard
 
-Next.js dashboard for analytics visualization
+The web dashboard for viewing analytics.
 
-## Features
-
-- Real-time visitor tracking
-- Geographic analytics
-- Traffic source analysis
-- Custom event tracking (premium)
-- Team collaboration (premium)
-
-## Tech Stack
+## Stack
 
 - Next.js 14 (App Router)
 - TypeScript
 - Tailwind CSS + shadcn/ui
-- Recharts for visualizations
-- NextAuth.js for authentication
+- Recharts (charts)
+- NextAuth.js (authentication)
 
-## Implementation Status
+## Pages
 
-- [ ] Project setup and configuration
-- [ ] Authentication system
-- [ ] Core dashboard components
-- [ ] Real-time data updates
-- [ ] Premium feature gates
+- `/` — Landing page
+- `/login` — Sign in
+- `/dashboard` — Site overview
+- `/dashboard/[siteId]` — Analytics for a site
+- `/dashboard/[siteId]/events` — Custom events
+- `/dashboard/[siteId]/live` — Real-time visitors
+- `/settings` — Account and site management
+
+## Development
+
+```bash
+cd packages/dashboard
+cp .env.example .env.local
+npm run dev       # Start on localhost:3000
+npm run build     # Production build
+npm run test      # Run tests
+```

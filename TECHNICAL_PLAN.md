@@ -1,339 +1,269 @@
-# Technical Implementation Plan
+# Technical Plan
 
-## 🎯 Core Objectives
+Internal architecture decisions and implementation notes.
 
-1. **Ultra-simple integration** - Single line of JavaScript
-2. **Privacy-first approach** - No cookies, minimal data collection
-3. **Real-time analytics** - Sub-second data processing
-4. **Self-hostable + Managed** - Open source core with premium cloud option
-5. **Developer-friendly** - Clean APIs, good docs, easy to extend
+## Design Principles
 
-## 📦 Repository Structure
+1. **Simplicity over features** — Ship fewer things that work perfectly.
+2. **Privacy by architecture** — Don't collect data you'll need to protect.
+3. **Performance matters** — The tracker must be invisible to site performance.
+4. **Self-host friendly** — Everything runs with `docker compose up`.
 
-```
-simple-analytics/
-├── packages/
-│   ├── tracker/          # Client-side tracking script
-│   ├── dashboard/        # Next.js dashboard app
-│   ├── api/             # Backend API service
-│   └── shared/          # Shared utilities and types
-├── docs/                # Documentation
-├── examples/            # Integration examples
-├── docker/              # Containerization
-└── scripts/             # Build and deployment scripts
-```
+## Tracker Script (`tracker/`)
 
-## 🔧 Technology Decisions
+The tracker is the most important piece. It must be:
 
-### Frontend (Dashboard)
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS + shadcn/ui
-- **State**: Zustand (lightweight)
-- **Charts**: Recharts or custom D3
-- **Auth**: NextAuth.js
+- Under 1 KB gzipped (ideally under 800 bytes)
+- Zero dependencies
+- No cookies, no localStorage, no fingerprinting
+- Non-blocking (Beacon API with `defer` loading)
+- Works without JavaScript frameworks
 
-### Backend (API)
-- **Runtime**: Node.js 20+
-- **Framework**: Fastify (faster than Express)
-- **Database**: PostgreSQL + TimescaleDB extension
-- **ORM**: Prisma (type-safe, great DX)
-- **Validation**: Zod
-- **Auth**: JWT tokens
-
-### Tracking Script
-- **Language**: Vanilla JavaScript (no dependencies)
-- **Size Target**: <2KB gzipped
-- **Browser Support**: Modern browsers (ES6+)
-- **Privacy**: No cookies, no localStorage
-- **Method**: Beacon API for reliability
-
-### Infrastructure
-- **Containers**: Docker + Docker Compose
-- **Database**: PostgreSQL with TimescaleDB
-- **Caching**: Redis for session storage
-- **CDN**: For tracking script delivery
-- **Monitoring**: Built-in health checks
-
-## 🗄 Database Design
-
-### Core Tables
-
-```sql
--- Sites configuration
-CREATE TABLE sites (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id),
-    domain VARCHAR(255) NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    tracking_id VARCHAR(50) UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    settings JSONB DEFAULT '{}'
-);
-
--- Visitor sessions
-CREATE TABLE sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    site_id UUID NOT NULL REFERENCES sites(id),
-    session_hash VARCHAR(64) NOT NULL, -- Privacy-friendly session ID
-    country CHAR(2),
-    region VARCHAR(100),
-    city VARCHAR(100),
-    browser VARCHAR(50),
-    os VARCHAR(50),
-    device_type VARCHAR(20),
-    referrer TEXT,
-    utm_source VARCHAR(100),
-    utm_medium VARCHAR(100),
-    utm_campaign VARCHAR(100),
-    first_seen TIMESTAMPTZ DEFAULT NOW(),
-    last_seen TIMESTAMPTZ DEFAULT NOW(),
-    page_views INTEGER DEFAULT 1
-);
-
--- Page views tracking
-CREATE TABLE page_views (
-    id BIGSERIAL PRIMARY KEY,
-    site_id UUID NOT NULL REFERENCES sites(id),
-    session_id UUID NOT NULL REFERENCES sessions(id),
-    page_path VARCHAR(500) NOT NULL,
-    page_title VARCHAR(200),
-    load_time INTEGER, -- milliseconds
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Custom events (premium feature)
-CREATE TABLE events (
-    id BIGSERIAL PRIMARY KEY,
-    site_id UUID NOT NULL REFERENCES sites(id),
-    session_id UUID NOT NULL REFERENCES sessions(id),
-    event_name VARCHAR(100) NOT NULL,
-    properties JSONB,
-    value DECIMAL(10,2),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Users and billing
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    plan VARCHAR(20) DEFAULT 'free',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### Indexes for Performance
-
-```sql
--- Query optimization indexes
-CREATE INDEX idx_sessions_site_first_seen ON sessions(site_id, first_seen);
-CREATE INDEX idx_page_views_site_created ON page_views(site_id, created_at);
-CREATE INDEX idx_events_site_name_created ON events(site_id, event_name, created_at);
-
--- TimescaleDB hypertables for time-series data
-SELECT create_hypertable('page_views', 'created_at');
-SELECT create_hypertable('events', 'created_at');
-```
-
-## 🔌 API Design
-
-### Core Endpoints
-
-```typescript
-// Tracking endpoint (public, no auth)
-POST /track
-Content-Type: application/json
-{
-  "site": "abc123",
-  "page": "/dashboard",
-  "referrer": "https://google.com",
-  "screen": "1920x1080",
-  "timestamp": 1708445123456
-}
-
-// Dashboard data (authenticated)
-GET /api/sites/{siteId}/analytics?period=7d&tz=UTC
-Response: {
-  "visitors": { "current": 1234, "previous": 1100 },
-  "pageviews": { "current": 4567, "previous": 4200 },
-  "countries": [{"country": "US", "visitors": 500}],
-  "pages": [{"path": "/", "views": 1200}],
-  "referrers": [{"domain": "google.com", "visits": 300}]
-}
-
-// Site management (authenticated)
-GET    /api/sites              # List user sites
-POST   /api/sites              # Create new site
-GET    /api/sites/{id}         # Get site details
-PATCH  /api/sites/{id}         # Update site settings
-DELETE /api/sites/{id}         # Delete site
-```
-
-### Authentication Flow
-
-```typescript
-// JWT-based authentication
-interface UserToken {
-  userId: string;
-  email: string;
-  plan: 'free' | 'premium' | 'enterprise';
-  exp: number;
-}
-
-// Middleware validation
-function requireAuth(request: FastifyRequest) {
-  const token = request.headers.authorization?.split(' ')[1];
-  const user = jwt.verify(token, process.env.JWT_SECRET);
-  request.user = user;
-}
-```
-
-## 📊 Real-time Processing
-
-### Data Pipeline
-
-```typescript
-// Tracking data processor
-class AnalyticsProcessor {
-  async processPageView(data: TrackingData) {
-    // 1. Validate and sanitize input
-    const validated = trackingSchema.parse(data);
-    
-    // 2. Extract session info (privacy-friendly hash)
-    const sessionHash = this.createSessionHash(validated);
-    
-    // 3. Upsert session record
-    const session = await this.upsertSession(sessionHash, validated);
-    
-    // 4. Record page view
-    await this.recordPageView(session.id, validated);
-    
-    // 5. Update real-time counters (Redis)
-    await this.updateRealtimeStats(validated.site);
-  }
-
-  private createSessionHash(data: TrackingData): string {
-    // Create privacy-friendly session identifier
-    // No IP addresses or personal data
-    const sessionData = `${data.screen}:${data.browser}:${data.timestamp}`;
-    return crypto.createHash('sha256').update(sessionData).digest('hex');
-  }
-}
-```
-
-### Real-time Updates
-
-```typescript
-// WebSocket for live dashboard updates
-class LiveAnalytics {
-  private connections = new Map<string, WebSocket[]>();
-
-  broadcastUpdate(siteId: string, update: AnalyticsUpdate) {
-    const sockets = this.connections.get(siteId) || [];
-    sockets.forEach(ws => {
-      ws.send(JSON.stringify(update));
-    });
-  }
-}
-```
-
-## 🚦 Privacy Implementation
-
-### GDPR Compliance
-
-```typescript
-interface PrivacyConfig {
-  ipAnonymization: boolean;     // Always true
-  cookieConsent: boolean;       // Not needed (no cookies)
-  dataRetention: number;        // Days to keep data
-  rightToDelete: boolean;       // User data deletion
-  dataExport: boolean;          // User data export
-}
-
-class PrivacyManager {
-  anonymizeIP(ip: string): string {
-    // Zero out last octet: 192.168.1.123 -> 192.168.1.0
-    return ip.replace(/\.\d+$/, '.0');
-  }
-
-  async deleteUserData(siteId: string, sessionHash: string) {
-    // Complete data removal on request
-    await this.db.transaction(async (tx) => {
-      await tx.events.deleteMany({ where: { sessionId: sessionHash } });
-      await tx.pageViews.deleteMany({ where: { sessionId: sessionHash } });
-      await tx.sessions.delete({ where: { sessionHash } });
-    });
-  }
-}
-```
-
-### Minimal Data Collection
+### Core behavior
 
 ```javascript
-// Client-side: Only collect essential data
-const collectData = () => ({
-  site: getSiteId(),
-  page: location.pathname,
-  referrer: document.referrer,
-  screen: `${screen.width}x${screen.height}`,
-  // NO: IP address, user agent, cookies, localStorage
-  // NO: Fingerprinting, cross-site tracking
-});
+(function() {
+  var d = document, s = d.currentScript;
+  var site = s.getAttribute('data-site');
+  var endpoint = s.getAttribute('data-api') || (s.src.split('/oa.js')[0] + '/api/event');
+
+  function send(type, props) {
+    var payload = {
+      s: site,                          // site ID
+      t: type,                          // event type: 'pageview' | custom
+      u: location.pathname,             // page path (no query strings)
+      r: d.referrer,                    // referrer
+      w: window.innerWidth,             // viewport width (for device type)
+    };
+    if (props) payload.p = props;
+    navigator.sendBeacon(endpoint, JSON.stringify(payload));
+  }
+
+  // Track page view on load
+  send('pageview');
+
+  // Expose custom event API
+  window.oa = { track: function(name, props) { send(name, props); } };
+
+  // Track SPA navigation (History API)
+  var pushState = history.pushState;
+  history.pushState = function() {
+    pushState.apply(history, arguments);
+    send('pageview');
+  };
+  window.addEventListener('popstate', function() { send('pageview'); });
+})();
 ```
 
-## 🎨 Dashboard Features
+### What the API extracts server-side
 
-### Core Analytics Views
+The tracker sends minimal data. The API enriches it:
 
-```typescript
-// Dashboard components
-interface DashboardData {
-  overview: {
-    visitors: { current: number; previous: number; change: number };
-    pageviews: { current: number; previous: number; change: number };
-    sessions: { current: number; previous: number; change: number };
-    bounceRate: { current: number; previous: number; change: number };
-  };
-  
-  charts: {
-    visitorsOverTime: Array<{ date: string; visitors: number }>;
-    topPages: Array<{ path: string; views: number; change: number }>;
-    topCountries: Array<{ country: string; visitors: number }>;
-    referrers: Array<{ source: string; visits: number }>;
-  };
-  
-  realtime: {
-    activeVisitors: number;
-    activePages: Array<{ path: string; visitors: number }>;
-  };
+| Client sends | API extracts |
+|-------------|-------------|
+| `site` | — |
+| `pathname` | — |
+| `referrer` | Referrer domain |
+| `viewport width` | Device type (mobile/tablet/desktop) |
+| — | Country, region (from anonymized IP via MaxMind GeoLite2) |
+| — | Browser + OS (from User-Agent header, then discarded) |
+| — | UTM params (parsed from referrer) |
+
+The IP address and User-Agent header are **never stored**. They're used for geo-lookup and browser detection during ingestion, then thrown away.
+
+## Ingestion API (`api/`)
+
+### Stack
+
+- **Fastify** — Handles high request volume with low overhead
+- **PostgreSQL + TimescaleDB** — Time-series optimized storage
+- **Redis** — Real-time counters and rate limiting
+- **Zod** — Request validation
+
+### Endpoints
+
+```
+POST /api/event              # Tracking endpoint (public, CORS enabled)
+GET  /api/sites/:id/stats    # Aggregated analytics (authenticated)
+GET  /api/sites/:id/live     # Real-time active visitors (WebSocket)
+GET  /api/sites/:id/export   # CSV/JSON export (authenticated)
+POST /api/sites              # Create site (authenticated)
+```
+
+### Processing pipeline
+
+```
+Request → Validate → Rate-limit check → GeoIP lookup → UA parse →
+  → Write to PostgreSQL → Update Redis counters → Respond 202
+```
+
+The tracking endpoint always returns `202 Accepted` immediately. Processing is synchronous but fast (single INSERT, no heavy computation). At scale, we can add a queue (Redis Streams or similar) between ingestion and storage.
+
+### Rate limiting
+
+- Per-site: 100 events/second
+- Per-IP: 30 events/minute (prevents abuse)
+- Global: Circuit breaker at ingestion layer
+
+## Database Schema
+
+```sql
+CREATE TABLE sites (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id     UUID NOT NULL REFERENCES users(id),
+    domain      VARCHAR(255) NOT NULL,
+    name        VARCHAR(100),
+    public_id   VARCHAR(12) UNIQUE NOT NULL,  -- the data-site value
+    settings    JSONB DEFAULT '{}',
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE pageviews (
+    time        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    site_id     UUID NOT NULL REFERENCES sites(id),
+    session_id  VARCHAR(32) NOT NULL,         -- daily rotating hash
+    path        VARCHAR(500) NOT NULL,
+    referrer    VARCHAR(500),
+    country     CHAR(2),
+    region      VARCHAR(100),
+    device      VARCHAR(10),                  -- mobile | tablet | desktop
+    browser     VARCHAR(30),
+    os          VARCHAR(30),
+    utm_source  VARCHAR(100),
+    utm_medium  VARCHAR(100),
+    utm_campaign VARCHAR(100),
+    load_time   INTEGER                       -- milliseconds
+);
+
+-- TimescaleDB hypertable for fast time-range queries
+SELECT create_hypertable('pageviews', 'time');
+
+-- Compression policy: compress chunks older than 7 days
+SELECT add_compression_policy('pageviews', INTERVAL '7 days');
+
+-- Retention policy: drop raw data after 2 years
+SELECT add_retention_policy('pageviews', INTERVAL '2 years');
+
+CREATE TABLE events (
+    time        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    site_id     UUID NOT NULL REFERENCES sites(id),
+    session_id  VARCHAR(32) NOT NULL,
+    name        VARCHAR(100) NOT NULL,
+    properties  JSONB,
+    value       DECIMAL(10,2)
+);
+
+SELECT create_hypertable('events', 'time');
+
+CREATE TABLE users (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    email       VARCHAR(255) UNIQUE NOT NULL,
+    name        VARCHAR(100),
+    plan        VARCHAR(20) DEFAULT 'free',
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Indexes
+CREATE INDEX idx_pv_site_time ON pageviews (site_id, time DESC);
+CREATE INDEX idx_pv_site_path ON pageviews (site_id, path);
+CREATE INDEX idx_ev_site_time ON events (site_id, time DESC);
+CREATE INDEX idx_ev_site_name ON events (site_id, name);
+```
+
+### Session handling
+
+Sessions are derived, not stored. A session ID is generated as:
+
+```
+sha256(site_id + date + country + device + browser)[:32]
+```
+
+This gives us a daily-rotating, privacy-friendly session identifier. No cookies needed. Two visits from the same device type and country on the same day = same session. Not perfect, but good enough for analytics without invading privacy.
+
+## Dashboard (`dashboard/`)
+
+### Stack
+
+- **Next.js 14** (App Router, server components where possible)
+- **Tailwind CSS + shadcn/ui** for consistent design
+- **Recharts** for charts and graphs
+- **NextAuth.js** for authentication (GitHub + email magic link)
+
+### Key pages
+
+```
+/                          # Landing page
+/login                     # Authentication
+/dashboard                 # Site list overview
+/dashboard/[siteId]        # Main analytics view
+/dashboard/[siteId]/events # Custom event tracking
+/dashboard/[siteId]/live   # Real-time view
+/settings                  # Account + site management
+/settings/sites/new        # Add new site (generates script tag)
+```
+
+### Dashboard data flow
+
+1. Dashboard makes authenticated requests to the API
+2. API queries TimescaleDB with `time_bucket()` for aggregation
+3. Real-time data comes through WebSocket from Redis pub/sub
+4. Client renders with Recharts + server components for initial load
+
+### Configurable flows (future)
+
+The dashboard will support user-defined conversion flows:
+
+```json
+{
+  "name": "Onboarding",
+  "steps": [
+    { "event": "pageview", "path": "/signup" },
+    { "event": "signup_complete" },
+    { "event": "pageview", "path": "/onboarding/step-1" },
+    { "event": "onboarding_complete" }
+  ]
 }
 ```
 
-### Premium Features
+This allows each user to define their own funnel based on their product's flow — whether it's a 3-step onboarding or a single-click signup. The dashboard visualizes drop-off between each step.
 
-```typescript
-// Advanced segmentation (premium only)
-interface AdvancedAnalytics {
-  funnels: Array<{
-    name: string;
-    steps: Array<{ page: string; conversions: number }>;
-  }>;
-  
-  cohorts: Array<{
-    period: string;
-    retention: Array<{ week: number; percentage: number }>;
-  }>;
-  
-  customEvents: Array<{
-    event: string;
-    count: number;
-    value: number;
-  }>;
-}
+## Self-Hosting vs Hosted
+
+Both use the exact same codebase. The hosted version at `openanalytics.dev` runs the same Docker setup with:
+
+- Managed PostgreSQL (with automated backups)
+- CDN for the tracking script
+- Automatic updates
+
+Self-hosters get the full experience. The hosted version is for people who don't want to manage infrastructure.
+
+## Development Workflow
+
+```bash
+# Start everything locally
+docker compose up -d          # PostgreSQL + Redis
+npm install                   # Install dependencies
+npm run dev                   # Start API + Dashboard in dev mode
+
+# Run tests
+npm run test                  # Unit + integration tests
+
+# Build for production
+npm run build                 # Build all packages
+docker compose -f docker-compose.prod.yml up -d
 ```
+
+## Implementation Order
+
+1. **Tracker script** — Get the <1KB script working and tested
+2. **Ingestion API** — Accept events, store in PostgreSQL
+3. **Basic dashboard** — Visitors, pages, referrers over time
+4. **Geographic + device data** — GeoIP integration, UA parsing
+5. **Real-time view** — WebSocket-powered live visitor count
+6. **Custom events** — `oa.track()` API
+7. **User auth + site management** — Multi-site support
+8. **Configurable funnels** — User-defined conversion flows
 
 ---
 
-*Technical plan created by Claude Sonnet 4 on February 20, 2026*
-*Implementation ready for development team*
+*Architecture: Claude Opus 4.6 (anthropic/claude-opus-4-6) — February 21, 2026*

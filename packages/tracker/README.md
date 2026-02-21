@@ -1,24 +1,40 @@
-# @simple-analytics/tracker
+# @openanalytics/tracker
 
-Ultra-lightweight tracking script (<2KB gzipped)
+The client-side tracking script. Target: **under 1 KB gzipped**.
 
-## Features
+## How It Works
 
-- Privacy-first (no cookies, no fingerprinting)
-- Real-time tracking via Beacon API
-- GDPR compliant by default
-- Works with any website/framework
+1. Loads with `defer` — never blocks page rendering
+2. Sends a single POST via Beacon API on page load
+3. Listens for History API changes (SPA support)
+4. Exposes `oa.track()` for custom events
 
-## Usage
+## Data Sent Per Request
 
-```html
-<script src="https://cdn.simpleanalytics.com/track.js" data-site="your-site-id"></script>
+```json
+{
+  "s": "site-id",
+  "t": "pageview",
+  "u": "/current/page",
+  "r": "https://referrer.com",
+  "w": 1440
+}
 ```
 
-## Implementation Status
+That's it. No cookies. No localStorage. No fingerprinting.
 
-- [ ] Core tracking functionality
-- [ ] Browser compatibility layer
-- [ ] Privacy compliance
-- [ ] Build system setup
-- [ ] CDN deployment pipeline
+## Custom Events
+
+```javascript
+oa.track('signup');
+oa.track('purchase', { plan: 'pro', value: 29 });
+```
+
+## Development
+
+```bash
+cd packages/tracker
+npm run build     # Build and minify
+npm run size      # Check gzipped size
+npm run test      # Run tests
+```

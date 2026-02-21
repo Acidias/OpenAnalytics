@@ -1,28 +1,33 @@
-# @simple-analytics/api
+# @openanalytics/api
 
-Backend API service for analytics data processing
+Event ingestion and analytics query API.
 
-## Features
+## Stack
 
-- High-performance tracking endpoint
-- Real-time data processing
-- PostgreSQL + TimescaleDB storage
-- JWT authentication
-- Rate limiting and security
+- Fastify (high-throughput HTTP)
+- PostgreSQL + TimescaleDB (time-series storage)
+- Redis (real-time counters, rate limiting)
+- Zod (validation)
+- Prisma (database access)
 
-## Tech Stack
+## Endpoints
 
-- Node.js 20+
-- Fastify framework
-- Prisma ORM
-- PostgreSQL + TimescaleDB
-- Redis for caching
-- Zod for validation
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `POST` | `/api/event` | No | Tracking endpoint (CORS enabled) |
+| `GET` | `/api/sites/:id/stats` | Yes | Aggregated analytics data |
+| `GET` | `/api/sites/:id/live` | Yes | WebSocket real-time visitors |
+| `GET` | `/api/sites/:id/export` | Yes | CSV/JSON data export |
+| `POST` | `/api/sites` | Yes | Create new site |
+| `PATCH` | `/api/sites/:id` | Yes | Update site settings |
+| `DELETE` | `/api/sites/:id` | Yes | Delete site and data |
 
-## Implementation Status
+## Development
 
-- [ ] Core API structure
-- [ ] Database schema and migrations
-- [ ] Authentication middleware
-- [ ] Tracking data processor
-- [ ] Dashboard data endpoints
+```bash
+cd packages/api
+cp .env.example .env
+npm run dev       # Start with hot reload
+npm run test      # Run tests
+npm run migrate   # Run database migrations
+```
