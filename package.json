@@ -1,0 +1,36 @@
+{
+  "name": "simple-analytics",
+  "version": "0.1.0",
+  "description": "Privacy-first, developer-friendly analytics platform",
+  "keywords": ["analytics", "privacy", "gdpr", "tracking", "dashboard"],
+  "author": "Mihaly Dani",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Acidias/simple-analytics"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace=dashboard",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "npm run lint --workspaces",
+    "db:setup": "cd packages/api && npm run db:setup",
+    "db:migrate": "cd packages/api && npm run db:migrate",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.45.0",
+    "prettier": "^3.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}
