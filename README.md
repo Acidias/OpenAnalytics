@@ -14,7 +14,7 @@ Google Analytics is bloated, privacy-invasive, and banned in several EU countrie
 
 OpenAnalytics is different:
 
-- **< 1 KB** — The tracking script is tiny. It won't slow down your site.
+- **< 2 KB** — The tracking script is tiny. Rich behavioral tracking in under 2 KB gzipped.
 - **No cookies** — No consent banners required. GDPR/CCPA friendly out of the box.
 - **Real-time** — See who's on your site right now, not yesterday.
 - **Open source** — Self-host it, fork it, extend it. Your data stays yours.
@@ -115,16 +115,18 @@ See drop-off at each step, average time between steps, and which segments conver
 
 ```
 openanalytics/
-├── tracker/        # Client-side script (vanilla JS, <1KB gzipped)
-├── api/            # Ingestion + query API (Node.js / Fastify)
-├── dashboard/      # Web dashboard (Next.js)
-├── shared/         # Types and utilities
-└── docker/         # Docker Compose setup
+├── packages/
+│   ├── tracker/    # Client-side script (vanilla JS, <2KB gzipped)
+│   ├── api/        # Ingestion + query API (Fastify)
+│   ├── dashboard/  # Web dashboard (Next.js 14)
+│   └── shared/     # Types, schemas, utilities
+├── docker-compose.yml
+└── package.json    # npm workspaces monorepo
 ```
 
 **Stack**: TypeScript, Next.js 14, Fastify, PostgreSQL + TimescaleDB, Redis
 
-The tracker sends a single POST request per page view using the Beacon API. No cookies, no localStorage, no fingerprinting. The API processes events in real-time and stores them in TimescaleDB for efficient time-series queries. The dashboard pulls data through authenticated API endpoints.
+The tracker sends lightweight events via Beacon API — pageviews, scroll depth, time on page, engagement, and outbound clicks are all tracked automatically. Custom events and dashboard-configured auto-track rules extend tracking without code changes. The API ingests events, enriches them with geo/device data (IP and UA are discarded after processing), and stores everything in a unified TimescaleDB hypertable with continuous aggregates for fast queries.
 
 ## Privacy
 
