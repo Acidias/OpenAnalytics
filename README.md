@@ -20,18 +20,30 @@ OpenAnalytics is different:
 - **Open source** — Self-host it, fork it, extend it. Your data stays yours.
 - **One line** — Copy a script tag, done. Works with any site or framework.
 
-## What You Get
+## What You Get (Out of the Box)
 
 | Metric | Description |
 |--------|-------------|
-| **Visitors** | Unique visitors, new vs returning (privacy-safe, no fingerprinting) |
-| **Pages** | Top pages, entry pages, exit pages |
-| **Referrers** | Where your traffic comes from |
+| **Visitors** | Unique visitors per session (privacy-safe, no cookies) |
+| **Pages** | Views, avg time on page, scroll depth, engagement rate |
+| **Sessions** | Full visitor journeys — entry page → pages visited → exit page |
+| **Scroll Depth** | How far visitors scroll on each page (%, distribution) |
+| **Time on Page** | Accurate dwell time via heartbeat tracking |
+| **Engagement** | Did they actually read/interact, or just bounce? |
+| **Outbound Clicks** | Which external links visitors click |
+| **Referrers** | Where your traffic comes from + UTM breakdown |
 | **Geography** | Country and region (from anonymized IP) |
 | **Devices** | Browser, OS, screen size, mobile vs desktop |
-| **UTM Tracking** | Campaign source, medium, content |
-| **Performance** | Page load times |
-| **Live View** | Real-time active visitors |
+| **Live View** | Real-time active visitors and current pages |
+
+### Dashboard-Configurable Tracking (No Code)
+
+Set up custom tracking from the dashboard — no code changes needed:
+
+- **Auto-Track Rules** — Point-and-click: pick a CSS selector, name the event, done
+- **Funnels** — Define multi-step flows (onboarding, checkout, signup) and see conversion at each step
+- **Goals** — Track single conversion events with completion rates
+- **Session Explorer** — Browse individual visitor journeys event-by-event
 
 ## Quick Start
 
@@ -73,7 +85,7 @@ Then add the script tag pointing to your own instance:
 
 ## Custom Events
 
-Track button clicks, sign-ups, purchases — anything you want:
+Track anything with one line of code:
 
 ```javascript
 // Basic event
@@ -81,9 +93,23 @@ oa.track('signup');
 
 // Event with properties
 oa.track('purchase', { plan: 'pro', value: 29 });
+
+// Onboarding steps
+oa.track('onboarding_step', { step: 3, name: 'connect_account' });
 ```
 
-Events show up in your dashboard under the Events tab with counts, breakdowns, and trends.
+Or skip the code entirely — configure auto-tracking from the dashboard using CSS selectors. Events show up with counts, property breakdowns, trends, and funnel analysis.
+
+## Funnels & Conversion Tracking
+
+Define multi-step flows in the dashboard and track conversion:
+
+```
+/signup → signup_complete → /onboarding/step-1 → onboarding_done
+  1,000      720 (72%)          650 (90%)           480 (74%)
+```
+
+See drop-off at each step, average time between steps, and which segments convert best. Works with pageviews, custom events, or both.
 
 ## Architecture
 
@@ -121,11 +147,14 @@ OpenAnalytics is built for a world where privacy matters:
 - [ ] Geographic and device analytics
 - [ ] Custom event tracking
 - [ ] UTM campaign tracking
-- [ ] User-configurable goals and funnels
+- [ ] Session explorer (browse visitor journeys)
+- [ ] Dashboard-configurable auto-track rules
+- [ ] Visual funnel builder with conversion analysis
+- [ ] Goal tracking with alerts
 - [ ] Team access and shared dashboards
 - [ ] REST API for programmatic access
+- [ ] Weekly email reports
 - [ ] Mobile SDKs (React Native, Flutter)
-- [ ] Configurable conversion flows (onboarding steps, CTAs)
 
 ## Contributing
 
