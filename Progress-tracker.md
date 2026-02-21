@@ -91,3 +91,4 @@
 | 2026-02-21 04:54 | tracker | Built full tracker script: all features from TECHNICAL_PLAN.md. 2556 bytes raw, 1247 bytes gzipped. | (see below) |
 | 2026-02-21 04:55 | shared-types | Built @openanalytics/shared: all types, Zod schemas, constants. tsc passes. | (see below) |
 | 2026-02-21 05:00 | api | Built @openanalytics/api: full DB schema, migrations, ingestion API, query API, funnels, goals, auto-track, auth, WebSocket live view. tsc passes. | (see below) |
+| 2026-02-21 05:15 | test-db | DB tested: all 7 tables ✅, hypertable ✅, 5 indexes ✅, 2 continuous aggregates ✅, INSERTs ✅, funnel query ✅. Fixed bug in 002 (daily policy window too small). | (see below) |

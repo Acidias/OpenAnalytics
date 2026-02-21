@@ -37,6 +37,6 @@ GROUP BY bucket, site_id
 WITH NO DATA;
 
 SELECT add_continuous_aggregate_policy('site_stats_daily',
-    start_offset => INTERVAL '2 days',
+    start_offset => INTERVAL '3 days',
     end_offset => INTERVAL '1 day',
     schedule_interval => INTERVAL '1 day');
