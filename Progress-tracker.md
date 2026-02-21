@@ -24,18 +24,18 @@
 ## Phase 2: Core Packages
 
 ### Tracker Script (`packages/tracker/`)
-- [ ] Build tooling (esbuild/rollup, minification)
-- [ ] Core: pageview tracking with session management (sessionStorage)
-- [ ] Core: scroll depth tracking
-- [ ] Core: time on page (heartbeat every 30s)
-- [ ] Core: engagement detection (5s timer + click/keypress)
-- [ ] Core: pageleave with duration + scroll + engaged
-- [ ] Core: outbound link click tracking
-- [ ] Core: SPA navigation (History API)
-- [ ] Dashboard config fetch + auto-track rule application
-- [ ] Public API: `oa.track()` and `oa.identify()`
-- [ ] Beacon API with XHR fallback
-- [ ] Final bundle < 2KB gzipped
+- [x] Build tooling (esbuild/rollup, minification)
+- [x] Core: pageview tracking with session management (sessionStorage)
+- [x] Core: scroll depth tracking
+- [x] Core: time on page (heartbeat every 30s)
+- [x] Core: engagement detection (5s timer + click/keypress)
+- [x] Core: pageleave with duration + scroll + engaged
+- [x] Core: outbound link click tracking
+- [x] Core: SPA navigation (History API)
+- [x] Dashboard config fetch + auto-track rule application
+- [x] Public API: `oa.track()` and `oa.identify()`
+- [x] Beacon API with XHR fallback
+- [x] Final bundle < 2KB gzipped (1247 bytes)
 - [ ] Tests
 
 ### Ingestion API (`packages/api/`)
@@ -88,4 +88,4 @@
 
 | Time | Agent | Action | Commit |
 |------|-------|--------|--------|
-| — | — | — | — |
+| 2026-02-21 04:54 | tracker | Built full tracker script: all features from TECHNICAL_PLAN.md. 2556 bytes raw, 1247 bytes gzipped. | (see below) |
