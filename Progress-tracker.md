@@ -16,10 +16,10 @@
 - [x] Package builds and exports correctly
 
 ### Database Schema (`packages/api/`)
-- [ ] SQL migration files (users, sites, events, funnels, goals, auto_track_rules)
-- [ ] TimescaleDB hypertable + compression + retention policies
-- [ ] Continuous aggregates (page_stats_hourly, site_stats_daily)
-- [ ] All indexes
+- [x] SQL migration files (users, sites, events, funnels, goals, auto_track_rules)
+- [x] TimescaleDB hypertable + compression + retention policies
+- [x] Continuous aggregates (page_stats_hourly, site_stats_daily)
+- [x] All indexes
 
 ## Phase 2: Core Packages
 
@@ -39,29 +39,29 @@
 - [ ] Tests
 
 ### Ingestion API (`packages/api/`)
-- [ ] Fastify server setup + CORS
-- [ ] POST /api/event — validate, enrich (GeoIP + UA parse), store
-- [ ] GET /api/config/:sitePublicId — serve auto-track rules (cached)
-- [ ] Rate limiting (per-site + per-IP + heartbeat dedup)
-- [ ] GeoIP integration (MaxMind GeoLite2, IP discarded)
-- [ ] UA parsing (ua-parser-js, header discarded)
-- [ ] Redis real-time counters + pub/sub
+- [x] Fastify server setup + CORS
+- [x] POST /api/event — validate, enrich (GeoIP + UA parse), store
+- [x] GET /api/config/:sitePublicId — serve auto-track rules (cached)
+- [x] Rate limiting (per-site + per-IP + heartbeat dedup)
+- [x] GeoIP integration (geoip-lite, IP discarded)
+- [x] UA parsing (ua-parser-js, header discarded)
+- [x] Redis real-time counters + pub/sub
 - [ ] Tests
 
 ### Query API (`packages/api/`)
-- [ ] GET /api/sites/:id/overview
-- [ ] GET /api/sites/:id/pages
-- [ ] GET /api/sites/:id/sessions + /:sid
-- [ ] GET /api/sites/:id/referrers
-- [ ] GET /api/sites/:id/geo
-- [ ] GET /api/sites/:id/devices
-- [ ] GET /api/sites/:id/events + /:name
-- [ ] GET /api/sites/:id/live (WebSocket)
-- [ ] GET /api/sites/:id/funnels/:fid (funnel analysis engine)
-- [ ] GET /api/sites/:id/goals
-- [ ] GET /api/sites/:id/export (CSV/JSON)
-- [ ] CRUD: sites, auto-track rules, funnels, goals
-- [ ] Auth middleware (NextAuth.js JWT verification)
+- [x] GET /api/sites/:id/overview
+- [x] GET /api/sites/:id/pages
+- [x] GET /api/sites/:id/sessions + /:sid
+- [x] GET /api/sites/:id/referrers
+- [x] GET /api/sites/:id/geo
+- [x] GET /api/sites/:id/devices
+- [x] GET /api/sites/:id/events + /:name
+- [x] GET /api/sites/:id/live (WebSocket)
+- [x] GET /api/sites/:id/funnels/:fid (funnel analysis engine)
+- [x] GET /api/sites/:id/goals
+- [x] GET /api/sites/:id/export (CSV/JSON)
+- [x] CRUD: sites, auto-track rules, funnels, goals
+- [x] Auth middleware (JWT verification)
 - [ ] Tests
 
 ## Phase 3: Dashboard
@@ -90,3 +90,4 @@
 |------|-------|--------|--------|
 | 2026-02-21 04:54 | tracker | Built full tracker script: all features from TECHNICAL_PLAN.md. 2556 bytes raw, 1247 bytes gzipped. | (see below) |
 | 2026-02-21 04:55 | shared-types | Built @openanalytics/shared: all types, Zod schemas, constants. tsc passes. | (see below) |
+| 2026-02-21 05:00 | api | Built @openanalytics/api: full DB schema, migrations, ingestion API, query API, funnels, goals, auto-track, auth, WebSocket live view. tsc passes. | (see below) |
