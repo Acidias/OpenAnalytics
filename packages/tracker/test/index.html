@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>OpenAnalytics Tracker Test</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 2rem auto; }
+    #log { background: #111; color: #0f0; padding: 1rem; font-family: monospace; font-size: 13px; height: 400px; overflow-y: auto; white-space: pre-wrap; }
+    button { margin: 0.5rem; padding: 0.5rem 1rem; }
+    a { margin: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>🧪 Tracker Test Page</h1>
+  <p>Open DevTools console to see events. All API calls are intercepted below.</p>
+
+  <div>
+    <button onclick="window.oa.track('button_click', {label: 'test'})">Track Custom Event</button>
+    <button onclick="window.oa.identify({user_id: 'u123', plan: 'pro'})">Identify User</button>
+    <button onclick="history.pushState({}, '', '/spa-page-' + Date.now())">SPA Navigate</button>
+    <a href="https://example.com" target="_blank">Outbound Link</a>
+  </div>
+
+  <h3>Intercepted Events:</h3>
+  <div id="log"></div>
+
+  <script>
+    // Mock sendBeacon and XHR to intercept tracker events
+    const logEl = document.getElementById('log');
+    function logEvent(method, data) {
+      const parsed = typeof data === 'string' ? JSON.parse(data) : data;
+      const line = new Date().toISOString().substr(11, 12) + ' [' + method + '] ' + parsed.t + ' ' + JSON.stringify(parsed.p || {}) + '\n';
+      logEl.textContent += line;
+      logEl.scrollTop = logEl.scrollHeight;
+      console.log('[Tracker]', parsed.t, parsed);
+    }
+
+    const origBeacon = navigator.sendBeacon.bind(navigator);
+    navigator.sendBeacon = function(url, data) {
+      logEvent('beacon', data);
+      return true; // pretend success, don't actually send
+    };
+
+    const OrigXHR = XMLHttpRequest;
+    window.XMLHttpRequest = function() {
+      const xhr = new OrigXHR();
+      const origSend = xhr.send.bind(xhr);
+      xhr.send = function(data) {
+        if (data) {
+          try { logEvent('xhr', data); } catch(e) {}
+        }
+        // Don't actually send — mock 200 for config
+        if (xhr._url && xhr._url.includes('/config/')) {
+          setTimeout(() => {
+            Object.defineProperty(xhr, 'status', { value: 200 });
+            Object.defineProperty(xhr, 'responseText', { value: JSON.stringify({ autoTrack: [] }) });
+            xhr.onload && xhr.onload();
+          }, 10);
+        }
+      };
+      const origOpen = xhr.open.bind(xhr);
+      xhr.open = function(method, url) {
+        xhr._url = url;
+        return origOpen.apply(xhr, arguments);
+      };
+      return xhr;
+    };
+  </script>
+
+  <!-- Load the tracker after mocks are in place -->
+  <script src="../dist/oa.js" data-site="test-site" data-api="http://localhost:3000/api"></script>
+</body>
+</html>

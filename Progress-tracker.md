@@ -67,22 +67,22 @@
 ## Phase 3: Dashboard
 
 ### Dashboard (`packages/dashboard/`)
-- [ ] Next.js 14 project setup + Tailwind + shadcn/ui
-- [ ] Auth (NextAuth.js — GitHub + email magic link)
-- [ ] Landing page
-- [ ] Site list + add site flow (generates script tag)
-- [ ] Overview page (visitors, pageviews, engagement, scroll depth, trends)
-- [ ] Pages analytics (per-page: views, duration, scroll, bounce)
-- [ ] Session explorer (list + single session timeline)
-- [ ] Custom events (overview + single event property breakdown)
-- [ ] Funnel builder (visual step builder + conversion visualization)
-- [ ] Goals page
-- [ ] Live real-time view (WebSocket)
-- [ ] Sources (referrers + UTM breakdown)
-- [ ] Geo (map + country/region)
-- [ ] Devices (browser, OS, device charts)
-- [ ] Settings (site settings + auto-track rule builder)
-- [ ] Account settings
+- [x] Next.js 14 project setup + Tailwind + shadcn/ui
+- [x] Auth (NextAuth.js — GitHub + email magic link)
+- [x] Landing page
+- [x] Site list + add site flow (generates script tag)
+- [x] Overview page (visitors, pageviews, engagement, scroll depth, trends)
+- [x] Pages analytics (per-page: views, duration, scroll, bounce)
+- [x] Session explorer (list + single session timeline)
+- [x] Custom events (overview + single event property breakdown)
+- [x] Funnel builder (visual step builder + conversion visualization)
+- [x] Goals page
+- [x] Live real-time view (WebSocket)
+- [x] Sources (referrers + UTM breakdown)
+- [x] Geo (map + country/region)
+- [x] Devices (browser, OS, device charts)
+- [x] Settings (site settings + auto-track rule builder)
+- [x] Account settings
 
 ## Agent Log
 
@@ -92,3 +92,5 @@
 | 2026-02-21 04:55 | shared-types | Built @openanalytics/shared: all types, Zod schemas, constants. tsc passes. | (see below) |
 | 2026-02-21 05:00 | api | Built @openanalytics/api: full DB schema, migrations, ingestion API, query API, funnels, goals, auto-track, auth, WebSocket live view. tsc passes. | (see below) |
 | 2026-02-21 05:15 | test-db | DB tested: all 7 tables ✅, hypertable ✅, 5 indexes ✅, 2 continuous aggregates ✅, INSERTs ✅, funnel query ✅. Fixed bug in 002 (daily policy window too small). | (see below) |
+| 2026-02-21 05:30 | dashboard | Built @openanalytics/dashboard: Next.js 14 + Tailwind + shadcn/ui + recharts. All 21 pages, auth, layouts, sidebar, charts, mock data. `next build` passes. | (see below) |
+| 2026-02-21 05:15 | test-shared-tracker | Shared: tsc clean, all 30 types export, 10 Zod schemas validate (valid+invalid). Tracker: builds clean, 2556B raw/1247B gzip, all 11 features verified, no bugs found. Test page created. | (see below) |
