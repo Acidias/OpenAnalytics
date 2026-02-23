@@ -17,7 +17,7 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 
 ## Docker
 
-`docker compose up` runs everything. Requires `packages/tracker/dist/oa.js` to be built first (`npm run -w @openanalytics/tracker build`). Env vars: `DB_PASSWORD`, `JWT_SECRET` (optional `API_URL`, `DASHBOARD_URL` for remote). Migrations run automatically on API startup.
+`docker compose up` runs everything. Requires `packages/tracker/dist/oa.js` to be built first (`npm run -w @openanalytics/tracker build`). Env vars: `DB_PASSWORD`, `JWT_SECRET` (optional `API_URL`, `DASHBOARD_URL` for remote). `TRACKER_URL` sets the public-facing URL for the tracking script tag (e.g. a Cloudflare Tunnel URL). `CORS_ORIGIN` supports comma-separated origins. Migrations run automatically on API startup.
 
 ## Database
 
