@@ -53,6 +53,7 @@ export default function SessionsPage() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>ID</TableHead>
                 <TableHead>Entry Page</TableHead>
                 <TableHead className="text-right">Pages</TableHead>
                 <TableHead className="text-right">Duration</TableHead>
@@ -70,10 +71,11 @@ export default function SessionsPage() {
                 return (
                   <TableRow key={s.session_id}>
                     <TableCell>
-                      <Link href={`/dashboard/${siteId}/sessions/${s.session_id}`} className="font-mono text-sm text-primary hover:underline">
-                        {s.entry_page || "/"}
+                      <Link href={`/dashboard/${siteId}/sessions/${s.session_id}`} className="font-mono text-xs text-primary hover:underline">
+                        {s.session_id.slice(0, 6)}
                       </Link>
                     </TableCell>
+                    <TableCell className="font-mono text-sm">{s.entry_page || "/"}</TableCell>
                     <TableCell className="text-right">{Number(s.page_count)}</TableCell>
                     <TableCell className="text-right">{formatDuration(durationSec)}</TableCell>
                     <TableCell>{s.country ? <Badge variant="secondary">{s.country}</Badge> : "-"}</TableCell>
