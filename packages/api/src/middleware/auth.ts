@@ -15,12 +15,25 @@ declare module 'fastify' {
 }
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
+  // Accept token from Authorization header or query param (WebSocket
+  // connections from browsers cannot set custom headers, so the dashboard
+  // passes the token as ?token=xxx for the live endpoint).
+  let token: string | undefined;
+
   const authHeader = request.headers.authorization;
-  if (!authHeader?.startsWith('Bearer ')) {
+  if (authHeader?.startsWith('Bearer ')) {
+    token = authHeader.slice(7);
+  } else {
+    const queryToken = (request.query as Record<string, string>).token;
+    if (queryToken) {
+      token = queryToken;
+    }
+  }
+
+  if (!token) {
     return reply.status(401).send({ error: 'Missing or invalid authorization header' });
   }
 
-  const token = authHeader.slice(7);
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
     request.user = decoded;
