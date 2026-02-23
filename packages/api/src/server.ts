@@ -96,6 +96,14 @@ async function main() {
   // Health check
   fastify.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 
+  // Root - return basic info so visitors don't get a bare 404
+  fastify.get('/', async () => ({
+    name: 'OpenAnalytics API',
+    status: 'ok',
+    health: '/health',
+    tracker: '/oa.js',
+  }));
+
   // Connect Redis
   try {
     await connectRedis();
