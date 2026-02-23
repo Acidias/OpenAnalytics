@@ -19,6 +19,69 @@ import { connectRedis } from './db/redis';
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
 
+function parseAndValidateCorsOrigin(origin: string): string {
+  let parsed: URL;
+  try {
+    parsed = new URL(origin);
+  } catch {
+    throw new Error(`Invalid CORS_ORIGIN entry "${origin}". Expected format: https://example.com[:port]`);
+  }
+
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    throw new Error(`Invalid CORS_ORIGIN entry "${origin}". Only http:// or https:// origins are allowed.`);
+  }
+
+  if (!parsed.hostname) {
+    throw new Error(`Invalid CORS_ORIGIN entry "${origin}". Missing hostname.`);
+  }
+
+  if (parsed.pathname !== '/' || parsed.search || parsed.hash || parsed.username || parsed.password) {
+    throw new Error(
+      `Invalid CORS_ORIGIN entry "${origin}". Use origin only (scheme + host + optional port), no path/query/hash/credentials.`
+    );
+  }
+
+  return parsed.origin;
+}
+
+function getCorsAllowedOrigins(isProduction: boolean, dashboardPort: string, logger: ReturnType<typeof Fastify>['log']) {
+  const corsOrigin = process.env.CORS_ORIGIN;
+  const localOrigin = `http://localhost:${dashboardPort}`;
+
+  if (isProduction && !corsOrigin?.trim()) {
+    throw new Error('CORS_ORIGIN must be set in production. Example: CORS_ORIGIN=https://app.yourdomain.com');
+  }
+
+  const configuredOrigins = (corsOrigin || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+
+  for (const origin of configuredOrigins) {
+    if (origin === '*' || origin.includes('*')) {
+      logger.warn(
+        `CORS_ORIGIN entry "${origin}" is a wildcard pattern. This is overly broad and should be replaced with explicit origins.`
+      );
+    }
+    if (origin === 'http://0.0.0.0' || origin === 'http://[::]' || origin === 'https://0.0.0.0' || origin === 'https://[::]') {
+      logger.warn(`CORS_ORIGIN entry "${origin}" is overly broad. Use a concrete hostname instead.`);
+    }
+  }
+
+  const validatedOrigins = configuredOrigins.map(parseAndValidateCorsOrigin);
+
+  if (!isProduction && !validatedOrigins.includes(localOrigin)) {
+    validatedOrigins.push(localOrigin);
+  }
+
+  if (!isProduction && validatedOrigins.length === 0) {
+    logger.info(`CORS_ORIGIN not set; allowing local dashboard origin ${localOrigin} for development.`);
+    return [localOrigin];
+  }
+
+  return [...new Set(validatedOrigins)];
+}
+
 // Pre-load tracker script so we don't read from disk on every request
 const TRACKER_PATH = path.resolve(__dirname, '../public/oa.js');
 let trackerScript: string | null = null;
@@ -44,20 +107,10 @@ async function main() {
     trustProxy: true,
   });
 
-  // Plugins - CORS_ORIGIN supports comma-separated origins (e.g. "https://yourdomain.com,https://www.yourdomain.com")
-  // The localhost dashboard origin is always allowed so admin access works
-  // regardless of what external origins are configured.
-  const corsOrigin = process.env.CORS_ORIGIN;
-  let allowedOrigins: string[] | true = true;
-  if (corsOrigin) {
-    const dashboardPort = process.env.DASHBOARD_PORT || '3100';
-    const localOrigin = `http://localhost:${dashboardPort}`;
-    const origins = corsOrigin.split(',').map((o) => o.trim()).filter(Boolean);
-    if (!origins.includes(localOrigin)) {
-      origins.push(localOrigin);
-    }
-    allowedOrigins = origins;
-  }
+  const isProduction = process.env.NODE_ENV === 'production';
+  const dashboardPort = process.env.DASHBOARD_PORT || '3100';
+  const allowedOrigins = getCorsAllowedOrigins(isProduction, dashboardPort, fastify.log);
+
   await fastify.register(cors, {
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
