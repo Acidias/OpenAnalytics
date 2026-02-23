@@ -84,6 +84,26 @@ Event → Validate (Zod) → Rate-limit (Redis)
 - Per-IP: 60 events/minute
 - Heartbeat dedup: max 1 per session per 25s
 
+
+## Proxy & IP Security
+
+The API uses Fastify's `trustProxy` setting to determine the client IP used by rate limiting.
+
+- `TRUST_PROXY=false` (default outside known proxy platforms) disables forwarded-header trust.
+- `TRUSTED_PROXY_HOPS=<number>` trusts a fixed number of proxy hops (recommended when your API is always behind one proxy, e.g. Nginx/Cloudflare Tunnel).
+- `TRUSTED_PROXY_SUBNETS=<csv>` trusts only requests that arrive from specific proxy CIDRs.
+- `TRUST_PROXY=true` without `TRUSTED_PROXY_HOPS`/`TRUSTED_PROXY_SUBNETS` is allowed, but the API logs a startup warning because spoofed `X-Forwarded-For` values may bypass IP-based limits.
+
+### Reverse-proxy header sanitation (recommended)
+
+At the edge proxy/load balancer:
+
+1. Strip incoming `X-Forwarded-For`, `X-Forwarded-Host`, and `X-Forwarded-Proto` headers from client traffic.
+2. Re-add canonical forwarded headers using values from the proxy itself.
+3. Restrict direct API ingress so only your trusted proxy can reach the API listener.
+
+This ensures downstream middleware cannot be tricked by user-supplied forwarded headers.
+
 ## Development
 
 ```bash

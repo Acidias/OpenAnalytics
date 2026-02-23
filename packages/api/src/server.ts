@@ -16,6 +16,7 @@ import aiSuggestRoutes from './routes/ai-suggest';
 import authRoutes from './routes/auth';
 import { csrfProtection } from './middleware/auth';
 import { connectRedis } from './db/redis';
+import { resolveTrustProxyConfig } from './trustProxy';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -101,12 +102,18 @@ async function main() {
     process.exit(1);
   }
 
+  const { trustProxy, warnings: trustProxyWarnings } = resolveTrustProxyConfig();
+
   const fastify = Fastify({
     logger: {
       level: process.env.LOG_LEVEL || 'info',
     },
-    trustProxy: true,
+    trustProxy,
   });
+
+  for (const warning of trustProxyWarnings) {
+    fastify.log.warn(warning);
+  }
 
   const isProduction = process.env.NODE_ENV === 'production';
   const dashboardPort = process.env.DASHBOARD_PORT || '3100';
