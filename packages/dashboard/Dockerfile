@@ -14,6 +14,8 @@ COPY . .
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
+# Ensure public/ exists even if the project has no static assets yet
+RUN mkdir -p public
 RUN npm run build
 
 # Stage 3: Production
