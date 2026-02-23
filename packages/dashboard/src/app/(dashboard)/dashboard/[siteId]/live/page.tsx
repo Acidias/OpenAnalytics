@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getWebSocketURL } from "@/lib/api";
+import { getWebSocketURL, api } from "@/lib/api";
 import { getToken } from "@/lib/auth";
 import { Zap } from "lucide-react";
 
@@ -25,6 +25,23 @@ export default function LivePage() {
   const [connected, setConnected] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
+  // Load recent events from the DB so the page shows current visitors immediately
+  useEffect(() => {
+    api.analytics
+      .liveRecent(siteId as string)
+      .then((data) => {
+        const recent = (data.events as LiveEvent[]).map((e) => ({
+          ...e,
+          time: e.time || new Date().toISOString(),
+        }));
+        setEvents(recent);
+      })
+      .catch(() => {
+        // Non-critical - WebSocket will provide events shortly
+      });
+  }, [siteId]);
+
+  // WebSocket for real-time streaming
   useEffect(() => {
     const token = getToken();
     const url = getWebSocketURL(`/api/sites/${siteId}/live${token ? `?token=${token}` : ""}`);

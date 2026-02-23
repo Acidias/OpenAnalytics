@@ -69,6 +69,8 @@ export const api = {
       fetchAPI(`/api/sites/${siteId}/devices${params ? `?${params}` : ""}`),
     live: (siteId: string) =>
       fetchAPI(`/api/sites/${siteId}/live`),
+    liveRecent: (siteId: string) =>
+      fetchAPI<{ events: unknown[] }>(`/api/sites/${siteId}/live/recent`),
   },
   funnels: {
     list: (siteId: string) =>

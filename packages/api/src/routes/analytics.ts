@@ -210,6 +210,20 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
     return { ...stats.rows[0], daily: daily.rows };
   });
 
+  // Recent live events (REST - for initial page load before WebSocket streams)
+  fastify.get<{ Params: { id: string } }>('/api/sites/:id/live/recent', async (request) => {
+    const { id } = request.params;
+    const result = await query(
+      `SELECT event, path, session_id, country, device, time
+       FROM events
+       WHERE site_id = $1 AND time > NOW() - INTERVAL '5 minutes'
+       ORDER BY time DESC
+       LIMIT 50`,
+      [id]
+    );
+    return { events: result.rows };
+  });
+
   // Live (WebSocket)
   fastify.get<{ Params: { id: string } }>('/api/sites/:id/live', { websocket: true }, (socket, request) => {
     const { id } = request.params;
