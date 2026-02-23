@@ -55,6 +55,11 @@ export type {
 } from './types/api.js';
 
 export type {
+  AISuggestion,
+  AISuggestResponse,
+} from './types/ai.js';
+
+export type {
   User,
   Site,
   Plan,

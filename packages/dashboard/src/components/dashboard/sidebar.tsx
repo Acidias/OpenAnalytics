@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   BarChart3, Globe, Users, MousePointerClick, Activity,
-  Layers, Target, Zap, Monitor, MapPin, Settings, ArrowLeft, Home, BookOpen
+  Layers, Target, Zap, Monitor, MapPin, Settings, ArrowLeft, Home, BookOpen, Sparkles
 } from "lucide-react";
 
 const mainNav = [
@@ -26,6 +26,7 @@ function siteNav(siteId: string) {
     { label: "Sources", href: `/dashboard/${siteId}/sources`, icon: Globe },
     { label: "Geography", href: `/dashboard/${siteId}/geo`, icon: MapPin },
     { label: "Devices", href: `/dashboard/${siteId}/devices`, icon: Monitor },
+    { label: "AI Setup", href: `/dashboard/${siteId}/ai-setup`, icon: Sparkles },
     { label: "Settings", href: `/dashboard/${siteId}/settings`, icon: Settings },
   ];
 }

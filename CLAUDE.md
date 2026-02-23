@@ -27,6 +27,10 @@ PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-
 
 `npm run -w @openanalytics/api seed:demo` creates a demo user (`demo@openanalytics.dev` / `demodemo123`), a demo site, 500 sessions of realistic sample data, 2 funnels, and 3 goals. Safe to re-run - clears existing demo events first.
 
+## AI Setup Assistant
+
+`ANTHROPIC_API_KEY` env var enables the AI setup feature. `POST /api/sites/:id/ai/suggest` gathers analytics context (top pages, flows, events, referrers, existing config), optionally crawls the homepage, and calls Claude to suggest funnels, goals, and auto-track rules. Suggestions are ephemeral - the user reviews and individually accepts them via existing create APIs. Dashboard page at `/dashboard/:siteId/ai-setup`.
+
 ## Conventions
 
 - TypeScript strict mode everywhere

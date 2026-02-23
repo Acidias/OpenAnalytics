@@ -86,4 +86,12 @@ export const api = {
     create: (siteId: string, data: Record<string, unknown>) =>
       fetchAPI(`/api/sites/${siteId}/goals`, { method: "POST", body: JSON.stringify(data) }),
   },
+  rules: {
+    create: (siteId: string, data: Record<string, unknown>) =>
+      fetchAPI(`/api/sites/${siteId}/rules`, { method: "POST", body: JSON.stringify(data) }),
+  },
+  ai: {
+    suggest: (siteId: string, data: { description?: string; crawl?: boolean }) =>
+      fetchAPI(`/api/sites/${siteId}/ai/suggest`, { method: "POST", body: JSON.stringify(data) }),
+  },
 };

@@ -38,6 +38,7 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${DASHBOARD_PORT:-3100}}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PORT: ${API_PORT:-3101}
       HOST: 0.0.0.0
     ports:

@@ -11,6 +11,7 @@ import funnelRoutes from './routes/funnels';
 import goalRoutes from './routes/goals';
 import sitesRoutes from './routes/sites';
 import autotrackRoutes from './routes/autotrack';
+import aiSuggestRoutes from './routes/ai-suggest';
 import authRoutes from './routes/auth';
 import { connectRedis } from './db/redis';
 
@@ -71,6 +72,7 @@ async function main() {
   await fastify.register(goalRoutes);
   await fastify.register(sitesRoutes);
   await fastify.register(autotrackRoutes);
+  await fastify.register(aiSuggestRoutes);
 
   // Serve tracker script
   fastify.get('/oa.js', async (_request, reply) => {

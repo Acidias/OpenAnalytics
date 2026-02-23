@@ -10,24 +10,25 @@
     "seed:demo": "tsx src/db/seed-demo.ts"
   },
   "dependencies": {
-    "@openanalytics/shared": "*",
-    "fastify": "^5.2.1",
+    "@anthropic-ai/sdk": "^0.78.0",
     "@fastify/cors": "^11.0.0",
     "@fastify/websocket": "^11.0.1",
-    "pg": "^8.13.1",
-    "ioredis": "^5.4.2",
-    "zod": "^3.24.2",
-    "ua-parser-js": "^2.0.3",
+    "@openanalytics/shared": "*",
+    "fastify": "^5.2.1",
     "geoip-lite": "^1.4.10",
-    "jsonwebtoken": "^9.0.2"
+    "ioredis": "^5.4.2",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "ua-parser-js": "^2.0.3",
+    "zod": "^3.24.2"
   },
   "devDependencies": {
-    "typescript": "^5.7.3",
+    "@types/geoip-lite": "^1.4.4",
+    "@types/jsonwebtoken": "^9.0.7",
     "@types/node": "^22.12.0",
     "@types/pg": "^8.11.11",
     "@types/ua-parser-js": "^0.7.39",
-    "@types/geoip-lite": "^1.4.4",
-    "@types/jsonwebtoken": "^9.0.7",
-    "tsx": "^4.19.2"
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
   }
 }
