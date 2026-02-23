@@ -16,6 +16,18 @@ const updateSiteSchema = z.object({
   settings: z.record(z.unknown()).optional(),
 });
 
+/** Strip protocol, trailing slashes, and paths so the domain is always a bare hostname */
+function normaliseDomain(raw: string): string {
+  let d = raw.trim();
+  // If it looks like a URL, parse out the hostname
+  if (d.includes('://')) {
+    try { d = new URL(d).hostname; } catch { /* fall through */ }
+  }
+  // Strip any remaining path, query, or trailing slashes
+  d = d.replace(/\/.*$/, '').replace(/^www\./, '');
+  return d;
+}
+
 export default async function sitesRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authMiddleware);
 
@@ -43,12 +55,13 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
     const parsed = createSiteSchema.safeParse(request.body);
     if (!parsed.success) return reply.status(400).send({ error: 'Invalid data', details: parsed.error.issues });
 
+    const domain = normaliseDomain(parsed.data.domain);
     const publicId = crypto.randomBytes(6).toString('base64url').slice(0, 12);
     const result = await query(
       `INSERT INTO sites (user_id, domain, name, public_id, settings)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, domain, name, public_id, settings, created_at`,
-      [request.user!.id, parsed.data.domain, parsed.data.name || null, publicId, JSON.stringify(parsed.data.settings || {})]
+      [request.user!.id, domain, parsed.data.name || null, publicId, JSON.stringify(parsed.data.settings || {})]
     );
     return reply.status(201).send({ site: result.rows[0] });
   });
@@ -63,7 +76,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
     const values: unknown[] = [];
     let idx = 1;
 
-    if (parsed.data.domain) { sets.push(`domain = $${idx++}`); values.push(parsed.data.domain); }
+    if (parsed.data.domain) { sets.push(`domain = $${idx++}`); values.push(normaliseDomain(parsed.data.domain)); }
     if (parsed.data.name !== undefined) { sets.push(`name = $${idx++}`); values.push(parsed.data.name); }
     if (parsed.data.settings) { sets.push(`settings = $${idx++}`); values.push(JSON.stringify(parsed.data.settings)); }
 

@@ -49,12 +49,21 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     const siteId = siteResult.rows[0].id;
     const siteDomain = siteResult.rows[0].domain;
 
-    // Verify the request comes from the registered domain
+    // Verify the request comes from the registered domain.
+    // The stored domain might be a bare hostname (example.com) or a full URL
+    // (https://example.com/) depending on what the user typed at creation time,
+    // so we normalise both sides to a bare hostname for comparison.
     const origin = request.headers['origin'] || request.headers['referer'];
     if (origin) {
       try {
         const originHost = new URL(origin).hostname.replace(/^www\./, '');
-        const registered = siteDomain.replace(/^www\./, '');
+        let registered = siteDomain.replace(/^www\./, '');
+        // If the stored domain looks like a URL, parse out the hostname
+        if (registered.includes('://')) {
+          registered = new URL(registered).hostname.replace(/^www\./, '');
+        }
+        // Also strip any trailing slashes/paths from bare hostnames
+        registered = registered.replace(/\/.*$/, '');
         if (originHost !== registered) {
           return reply.status(403).send({ error: 'Origin not allowed for this site' });
         }
