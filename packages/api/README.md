@@ -15,6 +15,8 @@ Event ingestion, analytics queries, and site configuration API.
 
 ### Tracking (public, CORS enabled)
 
+> Production requires `CORS_ORIGIN` with explicit origins only (`https://app.example.com` or comma-separated list). Development auto-allows localhost dashboard origin.
+
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/event` | Ingest tracking events |

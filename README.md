@@ -69,6 +69,17 @@ Then add the script tag pointing to your own instance:
 <script defer src="https://your-server.com/oa.js" data-site="YOUR_SITE_ID"></script>
 ```
 
+For self-hosted production deployments, set a strict CORS allowlist for the API:
+
+```bash
+# .env
+CORS_ORIGIN=https://analytics.yourdomain.com
+# or multiple explicit origins:
+# CORS_ORIGIN=https://app.yourdomain.com,https://admin.yourdomain.com
+```
+
+Use full origins only (scheme + host + optional port). Avoid wildcard or catch-all values.
+
 ### Framework Examples
 
 **Next.js** — add to `app/layout.tsx`:
