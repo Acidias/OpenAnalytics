@@ -8,6 +8,11 @@ export function getScriptTag(publicId: string): string {
   return `<script defer data-site="${publicId}" src="${trackerUrl}/oa.js"></script>`;
 }
 
+export function isHostedDeployment(): boolean {
+  const url = getTrackerBaseUrl();
+  return !url.includes('localhost') && !url.includes('127.0.0.1');
+}
+
 export function getTrackerBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_TRACKER_URL) {
     return process.env.NEXT_PUBLIC_TRACKER_URL;

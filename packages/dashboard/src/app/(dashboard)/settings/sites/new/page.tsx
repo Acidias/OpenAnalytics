@@ -23,6 +23,7 @@ import {
   ExternalLink,
 } from "lucide-react";
 import { api } from "@/lib/api";
+import { isHostedDeployment, getTrackerBaseUrl } from "@/lib/script-tag";
 
 /* ---------- Local CodeBlock component ---------- */
 
@@ -300,7 +301,8 @@ const SETUP_STEPS = [
 
 /* ---------- Step labels ---------- */
 
-const STEP_LABELS = ["Details", "Deploy", "Setup", "Script", "Done"];
+const LOCAL_STEP_LABELS = ["Details", "Deploy", "Setup", "Script", "Done"];
+const HOSTED_STEP_LABELS = ["Details", "Script", "Done"];
 
 /* ---------- Session storage persistence ---------- */
 
@@ -363,6 +365,10 @@ export default function NewSitePage() {
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const [llmPromptExpanded, setLlmPromptExpanded] = useState(false);
 
+  const hosted = isHostedDeployment();
+  const stepLabels = hosted ? HOSTED_STEP_LABELS : LOCAL_STEP_LABELS;
+  const totalSteps = stepLabels.length;
+
   // Restore wizard state from sessionStorage on mount
   useEffect(() => {
     const saved = loadWizardState();
@@ -387,8 +393,9 @@ export default function NewSitePage() {
     persistState();
   }, [persistState]);
 
+  const effectiveTrackerUrl = hosted ? getTrackerBaseUrl() : tunnelUrl;
   const scriptTag = publicId
-    ? `<script defer data-site="${publicId}" src="${tunnelUrl.replace(/\/$/, "")}/oa.js"></script>`
+    ? `<script defer data-site="${publicId}" src="${effectiveTrackerUrl.replace(/\/$/, "")}/oa.js"></script>`
     : "";
 
   const detectedTunnelUrl = process.env.NEXT_PUBLIC_TRACKER_URL || "";
@@ -446,33 +453,36 @@ export default function NewSitePage() {
 
       {/* Step indicator */}
       <div className="flex items-center justify-center gap-1">
-        {[1, 2, 3, 4, 5].map((s) => (
-          <div key={s} className="flex items-center gap-1">
-            <div className="flex flex-col items-center gap-1">
-              <div
-                className={cn(
-                  "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium",
-                  step >= s
-                    ? "bg-primary text-primary-foreground"
-                    : "bg-muted text-muted-foreground"
-                )}
-              >
-                {step > s ? <Check className="h-4 w-4" /> : s}
+        {stepLabels.map((label, i) => {
+          const s = i + 1;
+          return (
+            <div key={s} className="flex items-center gap-1">
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  className={cn(
+                    "h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium",
+                    step >= s
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {step > s ? <Check className="h-4 w-4" /> : s}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  {label}
+                </span>
               </div>
-              <span className="text-xs text-muted-foreground">
-                {STEP_LABELS[s - 1]}
-              </span>
+              {s < totalSteps && (
+                <div
+                  className={cn(
+                    "w-8 h-px mb-5",
+                    step > s ? "bg-primary" : "bg-muted"
+                  )}
+                />
+              )}
             </div>
-            {s < 5 && (
-              <div
-                className={cn(
-                  "w-8 h-px mb-5",
-                  step > s ? "bg-primary" : "bg-muted"
-                )}
-              />
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Step 1 - Site Details (unchanged) */}
@@ -517,8 +527,8 @@ export default function NewSitePage() {
         </Card>
       )}
 
-      {/* Step 2 - Deployment Choice */}
-      {step === 2 && (
+      {/* Step 2 - Deployment Choice (local only) */}
+      {!hosted && step === 2 && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">
@@ -580,8 +590,8 @@ export default function NewSitePage() {
         </Card>
       )}
 
-      {/* Step 3 - Setup Guide + LLM Prompt */}
-      {step === 3 && (
+      {/* Step 3 - Setup Guide + LLM Prompt (local only) */}
+      {!hosted && step === 3 && (
         <div className="space-y-6">
           {/* Cloudflare Tunnel Setup */}
           <Card>
@@ -727,8 +737,8 @@ export default function NewSitePage() {
         </div>
       )}
 
-      {/* Step 4 - Install Tracking Script */}
-      {step === 4 && (
+      {/* Script step - step 2 (hosted) or step 4 (local) */}
+      {step === (hosted ? 2 : 4) && (
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Install Tracking Script</CardTitle>
@@ -755,15 +765,15 @@ export default function NewSitePage() {
                 </>
               )}
             </Button>
-            <Button className="w-full" onClick={() => setStep(5)}>
+            <Button className="w-full" onClick={() => setStep(hosted ? 3 : 5)}>
               I&apos;ve Added the Script
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Step 5 - Done */}
-      {step === 5 && (
+      {/* Done step - step 3 (hosted) or step 5 (local) */}
+      {step === (hosted ? 3 : 5) && (
         <Card>
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-emerald-500/10 flex items-center justify-center">

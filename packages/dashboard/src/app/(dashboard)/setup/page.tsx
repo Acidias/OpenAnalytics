@@ -4,6 +4,8 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Copy, ExternalLink } from "lucide-react";
+import { isHostedDeployment, getTrackerBaseUrl } from "@/lib/script-tag";
+import Link from "next/link";
 
 function CodeBlock({ code, id, copiedId, onCopy }: {
   code: string;
@@ -31,12 +33,65 @@ function CodeBlock({ code, id, copiedId, onCopy }: {
 
 export default function SetupGuidePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const hosted = isHostedDeployment();
 
   const handleCopy = (id: string, text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
   };
+
+  if (hosted) {
+    return (
+      <div className="space-y-8 max-w-2xl">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Setup Guide</h1>
+          <p className="text-muted-foreground mt-1">
+            Your OpenAnalytics instance is ready to use
+          </p>
+        </div>
+
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                <Check className="h-5 w-5 text-emerald-500" />
+              </div>
+              <div>
+                <CardTitle className="text-base">
+                  Your instance is publicly accessible
+                </CardTitle>
+                <CardDescription>
+                  No tunnel or additional networking setup is needed
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border bg-muted/50 p-4 text-sm">
+              <p className="text-muted-foreground text-xs uppercase tracking-wide mb-1">
+                Tracker URL
+              </p>
+              <p className="font-mono">{getTrackerBaseUrl()}</p>
+            </div>
+
+            <div className="text-sm text-muted-foreground space-y-2">
+              <p>
+                To start tracking a website, add a site from{" "}
+                <strong>Settings &gt; Add Site</strong>, then copy the tracking
+                script into your website&apos;s{" "}
+                <code className="bg-muted px-1 rounded">&lt;head&gt;</code>.
+              </p>
+            </div>
+
+            <Button asChild className="w-full">
+              <Link href="/settings/sites/new">Add a Site</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-2xl">
