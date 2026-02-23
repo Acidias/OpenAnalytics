@@ -60,8 +60,31 @@ Set up custom tracking from the dashboard — no code changes needed:
 git clone https://github.com/Acidias/OpenAnalytics.git
 cd OpenAnalytics
 cp .env.example .env    # Edit with your database credentials
-docker compose up -d
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
 ```
+
+By default, `docker-compose.yml` keeps Postgres and Redis on the internal Docker network only.
+Use the `docker-compose.dev.yml` override above when you want local host access to those ports.
+
+### Compose modes
+
+- **Local dev (with Postgres/Redis host ports):**
+
+  ```bash
+  docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+  ```
+
+- **Production profile (least-privilege defaults):**
+
+  ```bash
+  OA_ENV=prod docker compose \
+    -f docker-compose.yml \
+    -f docker-compose.prod.yml \
+    --profile prod up -d
+  ```
+
+Production mode enables fail-fast credential checks. Change `DB_USER`, `DB_PASSWORD`, and `REDIS_PASSWORD`
+from defaults before starting containers.
 
 Then add the script tag pointing to your own instance:
 

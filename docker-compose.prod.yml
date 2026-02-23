@@ -1,0 +1,34 @@
+services:
+  postgres:
+    profiles: ["prod"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  redis:
+    profiles: ["prod"]
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+
+  api:
+    profiles: ["prod"]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
+
+  dashboard:
+    profiles: ["prod"]
+    restart: unless-stopped
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp
