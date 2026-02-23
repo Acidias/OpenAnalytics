@@ -59,12 +59,28 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // Resolve site_id from public_id
-    const siteResult = await query('SELECT id FROM sites WHERE public_id = $1', [data.s]);
+    // Resolve site_id from public_id and validate origin
+    const siteResult = await query('SELECT id, domain FROM sites WHERE public_id = $1', [data.s]);
     if (siteResult.rows.length === 0) {
       return reply.status(404).send({ error: 'Site not found' });
     }
     const siteId = siteResult.rows[0].id;
+    const siteDomain = siteResult.rows[0].domain;
+
+    // Verify the request comes from the registered domain
+    const origin = request.headers['origin'] || request.headers['referer'];
+    if (origin) {
+      try {
+        const originHost = new URL(origin).hostname.replace(/^www\./, '');
+        const registered = siteDomain.replace(/^www\./, '');
+        if (originHost !== registered) {
+          return reply.status(403).send({ error: 'Origin not allowed for this site' });
+        }
+      } catch {
+        // Malformed origin header - reject
+        return reply.status(403).send({ error: 'Invalid origin' });
+      }
+    }
 
     // GeoIP lookup (IP discarded after lookup)
     const ip = request.ip;
