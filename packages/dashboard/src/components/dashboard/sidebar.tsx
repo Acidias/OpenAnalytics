@@ -5,8 +5,9 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   BarChart3, Globe, Users, MousePointerClick, Activity,
-  Layers, Target, Zap, Monitor, MapPin, Settings, ArrowLeft, Home, BookOpen, Sparkles
+  Layers, Target, Zap, Monitor, MapPin, Settings, ArrowLeft, Home, BookOpen, Sparkles, LogOut
 } from "lucide-react";
+import { logout } from "@/lib/auth";
 
 const mainNav = [
   { label: "Sites", href: "/dashboard", icon: Home },
@@ -77,6 +78,16 @@ export function DashboardSidebar() {
           );
         })}
       </nav>
+
+      <div className="p-4 border-t">
+        <button
+          onClick={() => logout()}
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition-colors w-full"
+        >
+          <LogOut className="h-4 w-4" />
+          Sign Out
+        </button>
+      </div>
     </aside>
   );
 }

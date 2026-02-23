@@ -1,11 +1,12 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-production';
+import { JWT_SECRET } from '../config';
+import { redis } from '../db/redis';
 
 export interface AuthUser {
   id: string;
-  email: string;
+  email?: string;
+  jti?: string;
 }
 
 declare module 'fastify' {
@@ -15,27 +16,32 @@ declare module 'fastify' {
 }
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
-  // Accept token from Authorization header or query param (WebSocket
-  // connections from browsers cannot set custom headers, so the dashboard
-  // passes the token as ?token=xxx for the live endpoint).
   let token: string | undefined;
 
   const authHeader = request.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
     token = authHeader.slice(7);
   } else {
+    // Accept ?token= query param only for WebSocket live endpoint
     const queryToken = (request.query as Record<string, string>).token;
-    if (queryToken) {
+    if (queryToken && request.url.match(/^\/api\/sites\/[^/]+\/live/)) {
       token = queryToken;
     }
   }
 
   if (!token) {
-    return reply.status(401).send({ error: 'Missing or invalid authorization header' });
+    return reply.status(401).send({ error: 'Missing or invalid authorisation header' });
   }
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as AuthUser;
+    // If the token has a jti, verify the session still exists in Redis
+    if (decoded.jti) {
+      const exists = await redis.exists(`session:${decoded.jti}`);
+      if (!exists) {
+        return reply.status(401).send({ error: 'Session has been revoked' });
+      }
+    }
     request.user = decoded;
   } catch {
     return reply.status(401).send({ error: 'Invalid or expired token' });
@@ -43,7 +49,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
 }
 
 export async function verifySiteAccess(request: FastifyRequest, reply: FastifyReply) {
-  // Called after authMiddleware — verifies user owns the site
+  // Called after authMiddleware - verifies user owns the site
   const { pool } = await import('../db/connection');
   const siteId = (request.params as { id?: string }).id;
   if (!siteId || !request.user) {

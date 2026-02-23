@@ -18,7 +18,18 @@ export function setToken(token: string): void {
   localStorage.setItem(TOKEN_KEY, token);
 }
 
-export function logout(): void {
+export async function logout(): Promise<void> {
+  const token = getToken();
+  if (token) {
+    try {
+      await fetch(`${API_BASE}/api/auth/logout`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch {
+      // Network error should not block local logout
+    }
+  }
   localStorage.removeItem(TOKEN_KEY);
   window.location.href = "/login";
 }

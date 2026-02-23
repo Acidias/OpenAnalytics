@@ -36,7 +36,8 @@ services:
       DB_USER: postgres
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       REDIS_URL: redis://redis:6379
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      REGISTRATION_ENABLED: ${REGISTRATION_ENABLED:-true}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${DASHBOARD_PORT:-3100}}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       PORT: ${API_PORT:-3101}

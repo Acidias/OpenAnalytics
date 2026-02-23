@@ -24,6 +24,22 @@ export async function checkHeartbeatDedup(sessionId: string): Promise<boolean> {
   return result === 'OK';
 }
 
+// Auth: 10 login attempts per 15 min per IP
+export async function checkLoginRate(ip: string): Promise<boolean> {
+  const key = `rl:login:${ip}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, 900); // 15 minutes
+  return count <= 10;
+}
+
+// Auth: 5 registration attempts per hour per IP
+export async function checkRegisterRate(ip: string): Promise<boolean> {
+  const key = `rl:register:${ip}`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, 3600); // 1 hour
+  return count <= 5;
+}
+
 export async function rateLimitMiddleware(request: FastifyRequest, reply: FastifyReply) {
   const body = request.body as { s?: string } | undefined;
   const siteId = body?.s;

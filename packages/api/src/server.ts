@@ -1,3 +1,4 @@
+import './config'; // validate env vars before anything else
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import websocket from '@fastify/websocket';
