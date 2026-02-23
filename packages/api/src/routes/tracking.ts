@@ -1,11 +1,17 @@
 import { FastifyInstance } from 'fastify';
 import geoip from 'geoip-lite';
+import crypto from 'crypto';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const UAParser = require('ua-parser-js') as (ua: string) => { browser: { name?: string }; os: { name?: string } };
 import { query } from '../db/connection';
 import { redis } from '../db/redis';
 import { rateLimitMiddleware, checkHeartbeatDedup } from '../middleware/rateLimit';
 import { trackerPayloadSchema, classifyDevice } from '@openanalytics/shared';
+
+interface SiteIngestionToken {
+  publicId?: string;
+  secret?: string;
+}
 
 function extractUtm(pagePath?: string | null): Record<string, string | null> {
   const result: Record<string, string | null> = {
@@ -20,6 +26,51 @@ function extractUtm(pagePath?: string | null): Record<string, string | null> {
     }
   } catch { /* not a valid path */ }
   return result;
+}
+
+function normalizeHost(raw: string): string {
+  let normalized = raw.replace(/^www\./, '');
+  if (normalized.includes('://')) {
+    normalized = new URL(normalized).hostname.replace(/^www\./, '');
+  }
+  return normalized.replace(/\/.*$/, '');
+}
+
+function validateTrustedOrigin(originHeader: string | string[] | undefined, siteDomain: string): { trusted: boolean; malformed: boolean } {
+  if (!originHeader) return { trusted: false, malformed: false };
+  const origin = Array.isArray(originHeader) ? originHeader[0] : originHeader;
+  if (!origin) return { trusted: false, malformed: false };
+
+  try {
+    const originHost = new URL(origin).hostname.replace(/^www\./, '');
+    const registered = normalizeHost(siteDomain);
+    return { trusted: originHost === registered, malformed: false };
+  } catch {
+    return { trusted: false, malformed: true };
+  }
+}
+
+function signIngestionProof(secret: string, data: { s: string; sid: string; t: string; u: string; ts: number; tk: string }): string {
+  const content = [data.s, data.sid, data.t, data.u || '', String(data.ts), data.tk].join('.');
+  return crypto.createHmac('sha256', secret).update(content).digest('hex');
+}
+
+function validateSignedToken(
+  token: SiteIngestionToken,
+  data: { s: string; sid: string; t: string; u: string; ts: number; tk?: string; tsg?: string }
+): boolean {
+  if (!token.publicId || !token.secret || !data.tk || !data.tsg) return false;
+  if (data.tk !== token.publicId) return false;
+  const expected = signIngestionProof(token.secret, {
+    s: data.s,
+    sid: data.sid,
+    t: data.t,
+    u: data.u || '',
+    ts: data.ts,
+    tk: data.tk,
+  });
+  if (expected.length !== data.tsg.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(data.tsg));
 }
 
 export default async function trackingRoutes(fastify: FastifyInstance) {
@@ -51,36 +102,33 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       }
     }
 
-    // Resolve site_id from public_id and validate origin
-    const siteResult = await query('SELECT id, domain FROM sites WHERE public_id = $1', [data.s]);
+    // Resolve site_id from public_id and load authenticity config
+    const siteResult = await query('SELECT id, domain, settings FROM sites WHERE public_id = $1', [data.s]);
     if (siteResult.rows.length === 0) {
       return reply.status(404).send({ error: 'Site not found' });
     }
     const siteId = siteResult.rows[0].id;
     const siteDomain = siteResult.rows[0].domain;
+    const siteSettings = siteResult.rows[0].settings && typeof siteResult.rows[0].settings === 'object'
+      ? siteResult.rows[0].settings as Record<string, unknown>
+      : {};
+    const token = (siteSettings.ingestion_token && typeof siteSettings.ingestion_token === 'object'
+      ? siteSettings.ingestion_token
+      : {}) as SiteIngestionToken;
 
-    // Verify the request comes from the registered domain.
-    // The stored domain might be a bare hostname (example.com) or a full URL
-    // (https://example.com/) depending on what the user typed at creation time,
-    // so we normalise both sides to a bare hostname for comparison.
-    const origin = request.headers['origin'] || request.headers['referer'];
-    if (origin) {
-      try {
-        const originHost = new URL(origin).hostname.replace(/^www\./, '');
-        let registered = siteDomain.replace(/^www\./, '');
-        // If the stored domain looks like a URL, parse out the hostname
-        if (registered.includes('://')) {
-          registered = new URL(registered).hostname.replace(/^www\./, '');
-        }
-        // Also strip any trailing slashes/paths from bare hostnames
-        registered = registered.replace(/\/.*$/, '');
-        if (originHost !== registered) {
-          return reply.status(403).send({ error: 'Origin not allowed for this site' });
-        }
-      } catch {
-        // Malformed origin header - reject
-        return reply.status(403).send({ error: 'Invalid origin' });
-      }
+    const originCheck = validateTrustedOrigin(request.headers.origin || request.headers.referer, siteDomain);
+    if (originCheck.malformed) {
+      return reply.status(403).send({ error: 'Invalid origin' });
+    }
+
+    const signedTokenValid = validateSignedToken(token, data);
+    if (!originCheck.trusted && !signedTokenValid) {
+      const hasSignedAttempt = Boolean(data.tk || data.tsg);
+      return reply.status(403).send({
+        error: hasSignedAttempt
+          ? 'Invalid authenticity token'
+          : 'Missing authenticity proof',
+      });
     }
 
     // GeoIP lookup (IP discarded after lookup)

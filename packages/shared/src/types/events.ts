@@ -51,6 +51,10 @@ export interface TrackerPayload {
   w: number;
   /** Client timestamp */
   ts: number;
+  /** Ingestion token public ID */
+  tk?: string;
+  /** HMAC signature generated from token secret */
+  tsg?: string;
   /** Event properties */
   p?: Record<string, unknown>;
 }

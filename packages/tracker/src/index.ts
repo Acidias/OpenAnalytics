@@ -4,6 +4,8 @@
   var site = s.getAttribute('data-site');
   if (!site) return;
   var apiBase = s.getAttribute('data-api') || (s.src.split('/oa.js')[0] + '/api');
+  var tokenPublicId = s.getAttribute('data-token-id') || '';
+  var tokenSecret = s.getAttribute('data-token') || '';
   var endpoint = apiBase + '/event';
   var configEndpoint = apiBase + '/config/' + site;
 
@@ -20,6 +22,53 @@
   var leaveSent = false;
   var engageTimer: ReturnType<typeof setTimeout> | null = null;
 
+
+  function hex(buffer: ArrayBuffer): string {
+    var bytes = new Uint8Array(buffer);
+    var out = '';
+    for (var i = 0; i < bytes.length; i++) out += bytes[i].toString(16).padStart(2, '0');
+    return out;
+  }
+
+  function signPayload(payload: any): Promise<string | null> {
+    if (!tokenPublicId || !tokenSecret || !w.crypto || !w.crypto.subtle || !w.TextEncoder) return Promise.resolve(null);
+    var content = [payload.s, payload.sid, payload.t, payload.u || '', String(payload.ts), tokenPublicId].join('.');
+    return w.crypto.subtle.importKey(
+      'raw',
+      new TextEncoder().encode(tokenSecret),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['sign']
+    ).then(function (key) {
+      return w.crypto.subtle.sign('HMAC', key, new TextEncoder().encode(content));
+    }).then(function (signature) {
+      return hex(signature);
+    }).catch(function () {
+      return null;
+    });
+  }
+
+  function dispatch(data: string, type: string) {
+    if (navigator.sendBeacon) {
+      // Use text/plain to avoid CORS preflight - the API parses the body
+      // as JSON regardless. This makes sendBeacon reliable through tunnels
+      // and CDN proxies where preflight + fire-and-forget can conflict.
+      var ok = navigator.sendBeacon(endpoint, new Blob([data], { type: 'text/plain' }));
+      if (!ok && type !== 'pageleave') {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', endpoint, true);
+        xhr.setRequestHeader('Content-Type', 'text/plain');
+        xhr.send(data);
+      }
+      return;
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', endpoint, true);
+    xhr.setRequestHeader('Content-Type', 'text/plain');
+    xhr.send(data);
+  }
+
   // Send helper - Beacon with XHR fallback
   function send(type: string, props?: any) {
     var payload: any = {
@@ -32,24 +81,18 @@
       ts: Date.now()
     };
     if (props) payload.p = props;
-    var data = JSON.stringify(payload);
-    if (navigator.sendBeacon) {
-      // Use text/plain to avoid CORS preflight - the API parses the body
-      // as JSON regardless. This makes sendBeacon reliable through tunnels
-      // and CDN proxies where preflight + fire-and-forget can conflict.
-      var ok = navigator.sendBeacon(endpoint, new Blob([data], { type: 'text/plain' }));
-      if (!ok && type !== 'pageleave') {
-        var xhr = new XMLHttpRequest();
-        xhr.open('POST', endpoint, true);
-        xhr.setRequestHeader('Content-Type', 'text/plain');
-        xhr.send(data);
-      }
-    } else {
-      var xhr = new XMLHttpRequest();
-      xhr.open('POST', endpoint, true);
-      xhr.setRequestHeader('Content-Type', 'text/plain');
-      xhr.send(data);
+    if (tokenPublicId) payload.tk = tokenPublicId;
+    if (!tokenPublicId) {
+      dispatch(JSON.stringify(payload), type);
+      return;
     }
+
+    signPayload(payload).then(function (signature) {
+      if (signature) payload.tsg = signature;
+      dispatch(JSON.stringify(payload), type);
+    }).catch(function () {
+      dispatch(JSON.stringify(payload), type);
+    });
   }
 
   // Scroll depth

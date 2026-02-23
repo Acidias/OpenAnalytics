@@ -9,6 +9,8 @@ export const trackerPayloadSchema = z.object({
   r: z.string().max(500).nullable(),
   w: z.number().int().min(0).max(10000),
   ts: z.number().int().positive(),
+  tk: z.string().min(1).max(24).optional(),
+  tsg: z.string().min(16).max(128).optional(),
   p: z.record(z.unknown()).optional(),
 });
 

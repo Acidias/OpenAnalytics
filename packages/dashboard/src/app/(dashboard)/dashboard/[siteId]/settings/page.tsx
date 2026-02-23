@@ -34,6 +34,12 @@ interface Site {
   domain: string;
   name: string | null;
   public_id: string;
+  settings?: {
+    ingestion_token?: {
+      public_id?: string;
+      secret?: string;
+    };
+  };
 }
 
 export default function SiteSettingsPage() {
@@ -63,7 +69,7 @@ export default function SiteSettingsPage() {
       });
   }, [siteId]);
 
-  const scriptTag = site ? getScriptTag(site.public_id) : "";
+  const scriptTag = site ? getScriptTag(site.public_id, site.settings?.ingestion_token) : "";
 
   const handleSave = async () => {
     setSaving(true);

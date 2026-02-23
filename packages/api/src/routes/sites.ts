@@ -28,6 +28,31 @@ function normaliseDomain(raw: string): string {
   return d;
 }
 
+function createIngestionToken(): { public_id: string; secret: string } {
+  return {
+    public_id: crypto.randomBytes(6).toString('base64url').slice(0, 12),
+    secret: crypto.randomBytes(32).toString('hex'),
+  };
+}
+
+async function ensureIngestionToken(site: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const settings = site.settings && typeof site.settings === 'object'
+    ? { ...(site.settings as Record<string, unknown>) }
+    : {};
+  const token = settings.ingestion_token && typeof settings.ingestion_token === 'object'
+    ? settings.ingestion_token as Record<string, unknown>
+    : null;
+  const hasToken = Boolean(token?.public_id && token?.secret);
+
+  if (hasToken) {
+    return { ...site, settings };
+  }
+
+  settings.ingestion_token = createIngestionToken();
+  await query('UPDATE sites SET settings = $1 WHERE id = $2', [JSON.stringify(settings), site.id]);
+  return { ...site, settings };
+}
+
 export default async function sitesRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authMiddleware);
 
@@ -37,7 +62,8 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
       'SELECT id, domain, name, public_id, settings, created_at FROM sites WHERE user_id = $1 ORDER BY created_at DESC',
       [request.user!.id]
     );
-    return { sites: result.rows };
+    const sites = await Promise.all(result.rows.map((row) => ensureIngestionToken(row)));
+    return { sites };
   });
 
   // Get single site
@@ -47,7 +73,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
       [request.params.id, request.user!.id]
     );
     if (result.rows.length === 0) return reply.status(404).send({ error: 'Site not found' });
-    return { site: result.rows[0] };
+    return { site: await ensureIngestionToken(result.rows[0]) };
   });
 
   // Create site
@@ -57,11 +83,15 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
 
     const domain = normaliseDomain(parsed.data.domain);
     const publicId = crypto.randomBytes(6).toString('base64url').slice(0, 12);
+    const settings = {
+      ...(parsed.data.settings || {}),
+      ingestion_token: createIngestionToken(),
+    };
     const result = await query(
       `INSERT INTO sites (user_id, domain, name, public_id, settings)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING id, domain, name, public_id, settings, created_at`,
-      [request.user!.id, domain, parsed.data.name || null, publicId, JSON.stringify(parsed.data.settings || {})]
+      [request.user!.id, domain, parsed.data.name || null, publicId, JSON.stringify(settings)]
     );
     return reply.status(201).send({ site: result.rows[0] });
   });
@@ -88,7 +118,7 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
       values
     );
     if (result.rows.length === 0) return reply.status(404).send({ error: 'Site not found' });
-    return { site: result.rows[0] };
+    return { site: await ensureIngestionToken(result.rows[0]) };
   });
 
   // Delete site

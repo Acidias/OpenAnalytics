@@ -1,11 +1,19 @@
+interface IngestionToken {
+  public_id?: string;
+  secret?: string;
+}
+
 /**
  * Builds the tracking script tag for a given site.
  * Uses NEXT_PUBLIC_TRACKER_URL (the public-facing API URL that visitors'
  * browsers will reach), falling back to NEXT_PUBLIC_API_URL.
  */
-export function getScriptTag(publicId: string): string {
+export function getScriptTag(publicId: string, ingestionToken?: IngestionToken): string {
   const trackerUrl = getTrackerBaseUrl();
-  return `<script defer data-site="${publicId}" src="${trackerUrl}/oa.js"></script>`;
+  const tokenAttrs = ingestionToken?.public_id && ingestionToken?.secret
+    ? ` data-token-id="${ingestionToken.public_id}" data-token="${ingestionToken.secret}"`
+    : '';
+  return `<script defer data-site="${publicId}"${tokenAttrs} src="${trackerUrl}/oa.js"></script>`;
 }
 
 export function isHostedDeployment(): boolean {
