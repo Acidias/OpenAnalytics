@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
-import { formatDuration } from "@/lib/utils";
+import { formatDuration, formatPercent } from "@/lib/utils";
 import { Eye, MousePointerClick, ArrowDownRight, Sparkles, FileText, LogOut } from "lucide-react";
 
 interface TimelineEvent {
@@ -55,6 +57,28 @@ export default function SessionDetailPage() {
     ? Math.round((new Date(events[events.length - 1].time).getTime() - new Date(events[0].time).getTime()) / 1000)
     : 0;
 
+  // Build per-page summary from pageleave events (they carry duration + scroll)
+  const pageMap = new Map<string, { totalMs: number; maxScroll: number; visits: number; engaged: boolean }>();
+  for (const e of events) {
+    if (e.event === "pageleave" && e.path) {
+      const existing = pageMap.get(e.path);
+      const ms = e.duration_ms ?? 0;
+      const scroll = e.scroll_max_pct ?? 0;
+      const eng = e.engaged ?? false;
+      if (existing) {
+        existing.totalMs += ms;
+        existing.maxScroll = Math.max(existing.maxScroll, scroll);
+        existing.visits += 1;
+        existing.engaged = existing.engaged || eng;
+      } else {
+        pageMap.set(e.path, { totalMs: ms, maxScroll: scroll, visits: 1, engaged: eng });
+      }
+    }
+  }
+  const pageSummary = Array.from(pageMap.entries())
+    .map(([path, s]) => ({ path, ...s }))
+    .sort((a, b) => b.totalMs - a.totalMs);
+
   return (
     <div className="space-y-8">
       <div>
@@ -80,6 +104,47 @@ export default function SessionDetailPage() {
           <CardContent><div className="text-2xl font-bold">{events.some((e) => e.engaged) ? "Yes" : "No"}</div></CardContent>
         </Card>
       </div>
+
+      {pageSummary.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Page Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Page</TableHead>
+                  <TableHead className="text-right">Visits</TableHead>
+                  <TableHead className="text-right">Time Spent</TableHead>
+                  <TableHead>Scroll Depth</TableHead>
+                  <TableHead>Engaged</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pageSummary.map((p) => (
+                  <TableRow key={p.path}>
+                    <TableCell className="font-mono text-sm">{p.path}</TableCell>
+                    <TableCell className="text-right">{p.visits}</TableCell>
+                    <TableCell className="text-right">{formatDuration(Math.round(p.totalMs / 1000))}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Progress value={p.maxScroll} className="h-2 w-20" />
+                        <span className="text-xs text-muted-foreground">{formatPercent(p.maxScroll)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {p.engaged
+                        ? <Badge variant="secondary">Yes</Badge>
+                        : <span className="text-muted-foreground">No</span>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardContent className="pt-6">
