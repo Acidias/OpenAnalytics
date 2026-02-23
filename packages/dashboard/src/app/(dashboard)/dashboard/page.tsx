@@ -13,6 +13,7 @@ interface Site {
   domain: string;
   name: string | null;
   public_id: string;
+  settings?: { is_demo?: boolean };
   created_at: string;
 }
 
@@ -97,7 +98,11 @@ export default function DashboardPage() {
                       <p className="text-sm text-muted-foreground">{site.domain}</p>
                     </div>
                   </div>
-                  <Badge variant="secondary">Active</Badge>
+                  {site.settings?.is_demo ? (
+                    <Badge variant="outline" className="border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400">Demo</Badge>
+                  ) : (
+                    <Badge variant="secondary">Active</Badge>
+                  )}
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between text-sm">

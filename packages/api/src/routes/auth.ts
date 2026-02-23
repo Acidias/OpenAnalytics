@@ -14,6 +14,7 @@ import {
   COMMON_PASSWORDS,
   getDummyHash,
 } from '../config';
+import { provisionDemoSite } from '../services/provision-demo';
 
 const passwordSchema = z
   .string()
@@ -116,6 +117,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
     const { token, jti } = signToken(user.id);
     await storeSession(jti);
 
+    // Fire-and-forget: provision demo site for new user
+    provisionDemoSite(user.id).catch(() => {});
+
     return reply.status(201).send({ user, token });
   });
 
@@ -162,6 +166,9 @@ export default async function authRoutes(fastify: FastifyInstance) {
     await storeSession(jti);
     const { password_hash: _, ...safeUser } = user;
 
+    // Fire-and-forget: provision demo site if user doesn't have one
+    provisionDemoSite(user.id).catch(() => {});
+
     return { user: safeUser, token };
   });
 
@@ -182,6 +189,10 @@ export default async function authRoutes(fastify: FastifyInstance) {
     if (result.rows.length === 0) {
       return { user: null };
     }
+
+    // Fire-and-forget: provision demo site for existing users who don't have one
+    provisionDemoSite(request.user!.id).catch(() => {});
+
     return { user: result.rows[0] };
   });
 }
