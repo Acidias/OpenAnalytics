@@ -138,6 +138,7 @@ export default function AISetupPage() {
   const [crawl, setCrawl] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [limitReached, setLimitReached] = useState(false);
 
   // Wizard state
   const [phase, setPhase] = useState<Phase>("describe");
@@ -172,19 +173,23 @@ export default function AISetupPage() {
       setResults({ funnels: 0, goals: 0, rules: 0 });
       setPhase("review");
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message.includes("503")
-            ? "AI features require an Anthropic API key. Ask your administrator to set ANTHROPIC_API_KEY."
-            : err.message.includes("400")
-              ? "Not enough context to generate suggestions. Add a site description or collect some analytics data first."
-              : err.message.includes("429")
-                ? "AI rate limit reached. Please try again in a moment."
-                : err.message.includes("502")
-                  ? "Anthropic API error - check your API key and credit balance."
-                  : "Failed to generate suggestions. Please try again."
-          : "An unexpected error occurred."
-      );
+      if (err instanceof Error && err.message.includes("ai_limit_reached")) {
+        setLimitReached(true);
+      } else {
+        setError(
+          err instanceof Error
+            ? err.message.includes("503")
+              ? "AI features require an Anthropic API key. Ask your administrator to set ANTHROPIC_API_KEY."
+              : err.message.includes("400")
+                ? "Not enough context to generate suggestions. Add a site description or collect some analytics data first."
+                : err.message.includes("429")
+                  ? "AI rate limit reached. Please try again in a moment."
+                  : err.message.includes("502")
+                    ? "Anthropic API error - check your API key and credit balance."
+                    : "Failed to generate suggestions. Please try again."
+            : "An unexpected error occurred."
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -281,7 +286,7 @@ export default function AISetupPage() {
       </div>
 
       {/* Phase 1 - Describe */}
-      {phase === "describe" && (
+      {phase === "describe" && !limitReached && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Describe your site</CardTitle>
@@ -317,6 +322,43 @@ export default function AISetupPage() {
                     Generate Suggestions
                   </>
                 )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Limit reached */}
+      {limitReached && (
+        <Card>
+          <CardHeader className="text-center">
+            <Sparkles className="h-10 w-10 mx-auto mb-2 text-muted-foreground" />
+            <CardTitle>AI query limit reached</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4 text-center">
+            <p className="text-muted-foreground">
+              You&apos;ve used all 10 free AI setup queries. If you need more, feel free to reach out:
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <Button variant="outline" asChild>
+                <a
+                  href="https://x.com/AcidiasDev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  X (Twitter)
+                </a>
+              </Button>
+              <Button variant="outline" asChild>
+                <a
+                  href="https://www.linkedin.com/in/daniel-mihaly/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  LinkedIn
+                </a>
               </Button>
             </div>
           </CardContent>

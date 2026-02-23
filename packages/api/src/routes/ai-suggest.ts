@@ -334,6 +334,8 @@ ${context.existingRules.map((r: Record<string, unknown>) => `  [id: ${r.id}] ${r
   return prompt;
 }
 
+const AI_QUERY_LIMIT = 10;
+
 export default async function aiSuggestRoutes(fastify: FastifyInstance) {
   fastify.addHook('preHandler', authMiddleware);
   fastify.addHook('preHandler', verifySiteAccess);
@@ -343,6 +345,19 @@ export default async function aiSuggestRoutes(fastify: FastifyInstance) {
     if (!apiKey) {
       return reply.status(503).send({
         error: 'AI features require an Anthropic API key. Set ANTHROPIC_API_KEY in your environment.',
+      });
+    }
+
+    // Check AI usage limit
+    const userId = request.user!.id;
+    const usageResult = await query('SELECT ai_queries_used FROM users WHERE id = $1', [userId]);
+    const used = usageResult.rows[0]?.ai_queries_used ?? 0;
+    if (used >= AI_QUERY_LIMIT) {
+      return reply.status(429).send({
+        error: 'ai_limit_reached',
+        message: `You have reached the limit of ${AI_QUERY_LIMIT} AI queries. Contact us if you need more.`,
+        used,
+        limit: AI_QUERY_LIMIT,
       });
     }
 
@@ -400,6 +415,9 @@ export default async function aiSuggestRoutes(fastify: FastifyInstance) {
         goals: unknown[];
         rules: unknown[];
       };
+
+      // Increment usage counter only on success
+      await query('UPDATE users SET ai_queries_used = ai_queries_used + 1 WHERE id = $1', [userId]);
 
       return {
         funnels: suggestions.funnels || [],
