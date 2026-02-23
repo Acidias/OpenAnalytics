@@ -1,27 +1,44 @@
+import { getCsrfToken } from "@/lib/auth";
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
-function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("oa_token");
+async function tryRefresh(): Promise<boolean> {
+  const csrfToken = getCsrfToken();
+  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
+  });
+
+  return res.ok;
 }
 
-async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
-  const token = getToken();
+async function fetchAPI<T>(path: string, options?: RequestInit, retried = false): Promise<T> {
+  const method = (options?.method || "GET").toUpperCase();
+  const csrfToken = getCsrfToken();
   const headers: Record<string, string> = {
     ...(options?.body ? { "Content-Type": "application/json" } : {}),
     ...(options?.headers as Record<string, string>),
   };
-  if (token) {
-    headers["Authorization"] = `Bearer ${token}`;
+
+  if (["POST", "PATCH", "PUT", "DELETE"].includes(method) && csrfToken) {
+    headers["X-CSRF-Token"] = csrfToken;
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    credentials: "include",
   });
 
+  if (res.status === 401 && !retried) {
+    const refreshed = await tryRefresh();
+    if (refreshed) {
+      return fetchAPI<T>(path, options, true);
+    }
+  }
+
   if (res.status === 401 && typeof window !== "undefined") {
-    localStorage.removeItem("oa_token");
     window.location.href = "/login";
     throw new Error("Unauthorised");
   }

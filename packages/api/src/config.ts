@@ -11,8 +11,12 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET === 'change-me-in-producti
 }
 
 export const JWT_SECRET: string = process.env.JWT_SECRET;
-export const TOKEN_EXPIRY = '7d';
-export const TOKEN_EXPIRY_SECONDS = 604_800; // 7 days in seconds
+export const ACCESS_TOKEN_EXPIRY = '15m';
+export const ACCESS_TOKEN_EXPIRY_SECONDS = 900; // 15 minutes in seconds
+export const REFRESH_TOKEN_EXPIRY_SECONDS = 60 * 60 * 24 * 14; // 14 days
+export const AUTH_COOKIE_NAME = 'oa_access';
+export const REFRESH_COOKIE_NAME = 'oa_refresh';
+export const CSRF_COOKIE_NAME = 'oa_csrf';
 
 // --- Registration ---
 

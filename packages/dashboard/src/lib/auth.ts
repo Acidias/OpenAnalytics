@@ -1,5 +1,5 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-const TOKEN_KEY = "oa_token";
+const CSRF_COOKIE_NAME = "oa_csrf";
 
 export interface AuthUser {
   id: string;
@@ -9,38 +9,45 @@ export interface AuthUser {
   created_at?: string;
 }
 
-export function getToken(): string | null {
+function readCookie(name: string): string | null {
   if (typeof window === "undefined") return null;
-  return localStorage.getItem(TOKEN_KEY);
+  const match = document.cookie
+    .split(";")
+    .map((chunk) => chunk.trim())
+    .find((cookie) => cookie.startsWith(`${name}=`));
+
+  if (!match) return null;
+  return decodeURIComponent(match.slice(name.length + 1));
 }
 
-export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+export function getCsrfToken(): string | null {
+  return readCookie(CSRF_COOKIE_NAME);
 }
 
 export async function logout(): Promise<void> {
-  const token = getToken();
-  if (token) {
-    try {
-      await fetch(`${API_BASE}/api/auth/logout`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    } catch {
-      // Network error should not block local logout
-    }
+  const csrfToken = getCsrfToken();
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
+    });
+  } catch {
+    // Network error should not block local redirect
   }
-  localStorage.removeItem(TOKEN_KEY);
+
   window.location.href = "/login";
 }
 
-export function isLoggedIn(): boolean {
-  return !!getToken();
+export async function isLoggedIn(): Promise<boolean> {
+  const user = await getMe();
+  return !!user;
 }
 
-export async function login(email: string, password: string): Promise<{ user: AuthUser; token: string }> {
+export async function login(email: string, password: string): Promise<{ user: AuthUser }> {
   const res = await fetch(`${API_BASE}/api/auth/login`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
@@ -48,18 +55,17 @@ export async function login(email: string, password: string): Promise<{ user: Au
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || "Login failed");
   }
-  const data = await res.json();
-  setToken(data.token);
-  return data;
+  return res.json();
 }
 
 export async function register(
   email: string,
   password: string,
   name?: string
-): Promise<{ user: AuthUser; token: string }> {
+): Promise<{ user: AuthUser }> {
   const res = await fetch(`${API_BASE}/api/auth/register`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password, name }),
   });
@@ -67,17 +73,34 @@ export async function register(
     const data = await res.json().catch(() => ({}));
     throw new Error(data.error || "Registration failed");
   }
-  const data = await res.json();
-  setToken(data.token);
-  return data;
+  return res.json();
+}
+
+async function refreshSession(): Promise<boolean> {
+  const csrfToken = getCsrfToken();
+  const res = await fetch(`${API_BASE}/api/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: csrfToken ? { "X-CSRF-Token": csrfToken } : undefined,
+  });
+
+  return res.ok;
 }
 
 export async function getMe(): Promise<AuthUser | null> {
-  const token = getToken();
-  if (!token) return null;
-  const res = await fetch(`${API_BASE}/api/auth/me`, {
-    headers: { Authorization: `Bearer ${token}` },
+  let res = await fetch(`${API_BASE}/api/auth/me`, {
+    credentials: "include",
   });
+
+  if (res.status === 401) {
+    const refreshed = await refreshSession();
+    if (!refreshed) return null;
+
+    res = await fetch(`${API_BASE}/api/auth/me`, {
+      credentials: "include",
+    });
+  }
+
   if (!res.ok) return null;
   const data = await res.json();
   return data.user;

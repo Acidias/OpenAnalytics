@@ -14,6 +14,7 @@ import sitesRoutes from './routes/sites';
 import autotrackRoutes from './routes/autotrack';
 import aiSuggestRoutes from './routes/ai-suggest';
 import authRoutes from './routes/auth';
+import { csrfProtection } from './middleware/auth';
 import { connectRedis } from './db/redis';
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
@@ -61,9 +62,14 @@ async function main() {
   await fastify.register(cors, {
     origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],
   });
   await fastify.register(websocket);
 
+
+  // CSRF protection for state-changing authenticated endpoints
+  fastify.addHook('preHandler', csrfProtection);
   // Routes
   await fastify.register(authRoutes);
   await fastify.register(trackingRoutes);

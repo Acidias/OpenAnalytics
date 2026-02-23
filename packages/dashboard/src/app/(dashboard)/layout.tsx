@@ -10,11 +10,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    if (!isLoggedIn()) {
-      router.replace("/login");
-    } else {
-      setChecked(true);
-    }
+    let mounted = true;
+
+    isLoggedIn().then((loggedIn) => {
+      if (!mounted) return;
+      if (!loggedIn) {
+        router.replace("/login");
+      } else {
+        setChecked(true);
+      }
+    });
+
+    return () => {
+      mounted = false;
+    };
   }, [router]);
 
   if (!checked) return null;
