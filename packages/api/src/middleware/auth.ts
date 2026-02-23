@@ -52,6 +52,28 @@ export function readAuthToken(request: FastifyRequest): string | undefined {
 }
 
 export async function authMiddleware(request: FastifyRequest, reply: FastifyReply) {
+  // One-time WebSocket ticket auth for live endpoints
+  if (request.url.match(/^\/api\/sites\/[^/]+\/live/)) {
+    const ticket = (request.query as Record<string, string> | undefined)?.ticket;
+    if (ticket) {
+      const payloadRaw = await redis.getdel(`ws_ticket:${ticket}`);
+      if (!payloadRaw) {
+        return reply.status(401).send({ error: 'Invalid or expired websocket ticket' });
+      }
+      try {
+        const payload = JSON.parse(payloadRaw) as { userId?: string; siteId?: string };
+        const requestSiteId = (request.params as { id?: string }).id;
+        if (!payload.userId || !payload.siteId || !requestSiteId || payload.siteId !== requestSiteId) {
+          return reply.status(401).send({ error: 'Invalid websocket ticket' });
+        }
+        request.user = { id: payload.userId };
+        return;
+      } catch {
+        return reply.status(401).send({ error: 'Invalid websocket ticket' });
+      }
+    }
+  }
+
   const token = readAuthToken(request);
 
   if (!token) {

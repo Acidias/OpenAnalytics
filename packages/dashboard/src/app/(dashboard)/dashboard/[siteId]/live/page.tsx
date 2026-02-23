@@ -77,25 +77,39 @@ export default function LivePage() {
 
   // WebSocket for real-time streaming
   useEffect(() => {
-    const url = getWebSocketURL(`/api/sites/${siteId}/live`);
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
+    let cancelled = false;
 
-    ws.onopen = () => setConnected(true);
-    ws.onclose = () => setConnected(false);
-    ws.onerror = () => setConnected(false);
-
-    ws.onmessage = (msg) => {
+    const connect = async () => {
       try {
-        const data = JSON.parse(msg.data) as LiveEvent;
-        setEvents((prev) => [data, ...prev].slice(0, MAX_EVENTS));
+        const { ticket } = await api.auth.wsTicket(siteId as string);
+        if (cancelled) return;
+
+        const url = getWebSocketURL(`/api/sites/${siteId}/live?ticket=${ticket}`);
+        const ws = new WebSocket(url);
+        wsRef.current = ws;
+
+        ws.onopen = () => setConnected(true);
+        ws.onclose = () => setConnected(false);
+        ws.onerror = () => setConnected(false);
+
+        ws.onmessage = (msg) => {
+          try {
+            const data = JSON.parse(msg.data) as LiveEvent;
+            setEvents((prev) => [data, ...prev].slice(0, MAX_EVENTS));
+          } catch {
+            // ignore malformed messages
+          }
+        };
       } catch {
-        // ignore malformed messages
+        setConnected(false);
       }
     };
 
+    connect();
+
     return () => {
-      ws.close();
+      cancelled = true;
+      wsRef.current?.close();
     };
   }, [siteId]);
 

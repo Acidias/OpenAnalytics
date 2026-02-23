@@ -62,6 +62,13 @@ export function getWebSocketURL(path: string): string {
 }
 
 export const api = {
+  auth: {
+    wsTicket: (siteId: string) =>
+      fetchAPI<{ ticket: string; expiresInSeconds: number }>("/api/auth/ws-ticket", {
+        method: "POST",
+        body: JSON.stringify({ siteId }),
+      }),
+  },
   sites: {
     list: () => fetchAPI<{ sites: unknown[] }>("/api/sites"),
     get: (id: string) => fetchAPI(`/api/sites/${id}`),
