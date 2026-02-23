@@ -10,8 +10,9 @@ import sitesRoutes from './routes/sites';
 import autotrackRoutes from './routes/autotrack';
 import { connectRedis } from './db/redis';
 
-const PORT = parseInt(process.env.PORT || '3001', 10);
+const BASE_PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
+const MAX_PORT_RETRIES = 10;
 
 async function main() {
   const fastify = Fastify({
@@ -48,9 +49,23 @@ async function main() {
     fastify.log.warn('Redis connection failed, continuing without real-time features');
   }
 
-  // Start
-  await fastify.listen({ port: PORT, host: HOST });
-  fastify.log.info(`OpenAnalytics API running on ${HOST}:${PORT}`);
+  // Start with auto-increment on port conflict
+  let port = BASE_PORT;
+  for (let attempt = 0; attempt < MAX_PORT_RETRIES; attempt++) {
+    try {
+      await fastify.listen({ port, host: HOST });
+      fastify.log.info(`OpenAnalytics API running on ${HOST}:${port}`);
+      return;
+    } catch (err: any) {
+      if (err.code === 'EADDRINUSE') {
+        fastify.log.warn(`Port ${port} in use, trying ${port + 1}...`);
+        port++;
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error(`Could not find an available port (tried ${BASE_PORT}-${port - 1})`);
 }
 
 main().catch((err) => {

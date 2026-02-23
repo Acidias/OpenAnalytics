@@ -8,7 +8,7 @@
     "build:check": "node -e \"const fs=require('fs');const z=require('zlib');const b=fs.readFileSync('dist/oa.js');console.log('Raw:',b.length,'bytes');console.log('Gzipped:',z.gzipSync(b).length,'bytes')\""
   },
   "devDependencies": {
-    "esbuild": "^0.20.0",
+    "esbuild": "^0.27.3",
     "typescript": "^5.3.0"
   },
   "license": "MIT"
