@@ -13,12 +13,15 @@
     "packages/*"
   ],
   "scripts": {
-    "dev": "npm run --workspaces --if-present dev",
+    "dev": "concurrently -n api,dashboard -c blue,green \"npm run -w @openanalytics/api dev\" \"npm run -w @openanalytics/dashboard dev\"",
     "build": "npm run --workspaces --if-present build",
     "test": "npm run --workspaces --if-present test",
     "lint": "npm run --workspaces --if-present lint"
   },
   "engines": {
     "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
   }
 }
