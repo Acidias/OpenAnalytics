@@ -26,7 +26,9 @@ services:
       retries: 10
 
   api:
-    build: ./packages/api
+    build:
+      context: .
+      dockerfile: packages/api/Dockerfile
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -41,7 +43,7 @@ services:
     ports:
       - "${API_PORT:-3101}:${API_PORT:-3101}"
     volumes:
-      - ./packages/tracker/dist/oa.js:/app/public/oa.js:ro
+      - ./packages/tracker/dist/oa.js:/app/packages/api/public/oa.js:ro
     depends_on:
       postgres:
         condition: service_healthy
