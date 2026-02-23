@@ -784,7 +784,15 @@ export default function NewSitePage() {
               {siteName || domain} is now being tracked
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <div className="rounded-md border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950 p-4 text-sm space-y-2">
+              <p className="font-medium">Verify it&apos;s working</p>
+              <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                <li>Open <span className="font-medium text-foreground">{domain}</span> in your browser (or refresh the page if it&apos;s already open)</li>
+                <li>Come back here and open the <span className="font-medium text-foreground">Live</span> view from the dashboard</li>
+                <li>You should see your visit appear within a few seconds</li>
+              </ol>
+            </div>
             <Button
               className="w-full"
               onClick={() => {
