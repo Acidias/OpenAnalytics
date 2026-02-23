@@ -29,7 +29,7 @@ PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-
 
 ## AI Setup Assistant
 
-`ANTHROPIC_API_KEY` env var enables the AI setup feature. `POST /api/sites/:id/ai/suggest` gathers analytics context (top pages, flows, events, referrers, existing config with full details and IDs), optionally crawls the homepage, and calls Claude to suggest funnels, goals, and auto-track rules. AI can suggest new items or replacements for existing ones (action: "create" | "replace"). Dashboard page at `/dashboard/:siteId/ai-setup` uses a 3-phase wizard: Describe (input), Review (step through each suggestion with editable fields), Done (summary with links). Replacements delete the old item then create the new one.
+`ANTHROPIC_API_KEY` env var enables the AI setup feature. `POST /api/sites/:id/ai/suggest` gathers analytics context (top pages, flows, events, referrers, existing config with full details and IDs), optionally crawls the homepage, and calls Claude to suggest funnels, goals, and auto-track rules. AI can suggest new items or replacements for existing ones (action: "create" | "replace"). Dashboard page at `/dashboard/:siteId/ai-setup` uses a 3-phase wizard: Describe (input), Review (step through each suggestion with editable fields), Done (summary with links). Replacements delete the old item then create the new one. Hard limit of 10 AI queries per user (stored in `users.ai_queries_used`), only incremented on successful responses. Dashboard shows contact links when limit reached.
 
 ## Conventions
 
