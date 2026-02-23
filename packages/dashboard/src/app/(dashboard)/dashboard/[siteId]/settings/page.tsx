@@ -46,6 +46,8 @@ export default function SiteSettingsPage() {
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     api.sites
@@ -80,11 +82,13 @@ export default function SiteSettingsPage() {
 
   const handleDelete = async () => {
     setDeleting(true);
+    setDeleteError(null);
     try {
       await api.sites.delete(siteId as string);
       router.push("/settings");
-    } catch {
+    } catch (err) {
       setDeleting(false);
+      setDeleteError(err instanceof Error ? err.message : "Failed to delete site");
     }
   };
 
@@ -187,7 +191,7 @@ export default function SiteSettingsPage() {
                 Permanently delete this site and all its data
               </p>
             </div>
-            <AlertDialog>
+            <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
               <AlertDialogTrigger asChild>
                 <Button variant="destructive" disabled={deleting}>
                   {deleting ? "Deleting..." : "Delete Site"}
@@ -201,13 +205,20 @@ export default function SiteSettingsPage() {
                     data. This action cannot be undone.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
+                {deleteError && (
+                  <p className="text-sm text-destructive">{deleteError}</p>
+                )}
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
                   <AlertDialogAction
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                    onClick={handleDelete}
+                    disabled={deleting}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleDelete();
+                    }}
                   >
-                    Delete
+                    {deleting ? "Deleting..." : "Delete"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
