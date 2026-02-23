@@ -23,6 +23,16 @@ function extractUtm(pagePath?: string | null): Record<string, string | null> {
 }
 
 export default async function trackingRoutes(fastify: FastifyInstance) {
+  // The tracker sends events as text/plain to avoid CORS preflights.
+  // Parse text/plain bodies as JSON so Fastify can handle them.
+  fastify.addContentTypeParser('text/plain', { parseAs: 'string' }, (_req, body, done) => {
+    try {
+      done(null, JSON.parse(body as string));
+    } catch (err) {
+      done(err as Error, undefined);
+    }
+  });
+
   fastify.post('/api/event', {
     preHandler: rateLimitMiddleware,
   }, async (request, reply) => {

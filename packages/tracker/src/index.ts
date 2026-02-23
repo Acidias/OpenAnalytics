@@ -34,17 +34,20 @@
     if (props) payload.p = props;
     var data = JSON.stringify(payload);
     if (navigator.sendBeacon) {
-      var ok = navigator.sendBeacon(endpoint, new Blob([data], { type: 'application/json' }));
+      // Use text/plain to avoid CORS preflight - the API parses the body
+      // as JSON regardless. This makes sendBeacon reliable through tunnels
+      // and CDN proxies where preflight + fire-and-forget can conflict.
+      var ok = navigator.sendBeacon(endpoint, new Blob([data], { type: 'text/plain' }));
       if (!ok && type !== 'pageleave') {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', endpoint, true);
-        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.setRequestHeader('Content-Type', 'text/plain');
         xhr.send(data);
       }
     } else {
       var xhr = new XMLHttpRequest();
       xhr.open('POST', endpoint, true);
-      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Content-Type', 'text/plain');
       xhr.send(data);
     }
   }
