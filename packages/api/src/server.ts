@@ -95,7 +95,12 @@ async function main() {
   for (let attempt = 0; attempt < MAX_PORT_RETRIES; attempt++) {
     try {
       await fastify.listen({ port, host: HOST });
-      fastify.log.info(`OpenAnalytics API running on ${HOST}:${port}`);
+      console.log('');
+      console.log('  OpenAnalytics API ready');
+      console.log(`  -> http://localhost:${port}`);
+      console.log(`  -> Health:  http://localhost:${port}/health`);
+      console.log(`  -> Tracker: http://localhost:${port}/oa.js`);
+      console.log('');
       return;
     } catch (err: any) {
       if (err.code === 'EADDRINUSE') {
