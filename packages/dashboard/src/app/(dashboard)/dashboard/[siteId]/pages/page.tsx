@@ -33,33 +33,12 @@ export default function PagesPage() {
   if (error) return <p className="text-destructive">{error}</p>;
   if (!pages) return <p className="text-muted-foreground">Loading...</p>;
 
-  // Aggregate rows by path (the API may return hourly buckets)
-  const aggregated = new Map<string, { views: number; visitors: number; totalDuration: number; totalScroll: number; count: number }>();
-  for (const p of pages) {
-    const existing = aggregated.get(p.path);
-    const views = Number(p.views) || 0;
-    const visitors = Number(p.unique_visitors) || 0;
-    const dur = Number(p.avg_duration_ms) || 0;
-    const scroll = Number(p.avg_scroll_pct) || 0;
-    if (existing) {
-      existing.views += views;
-      existing.visitors += visitors;
-      existing.totalDuration += dur * views;
-      existing.totalScroll += scroll * views;
-      existing.count += views;
-    } else {
-      aggregated.set(p.path, { views, visitors, totalDuration: dur * views, totalScroll: scroll * views, count: views });
-    }
-  }
-
-  const rows = Array.from(aggregated.entries())
-    .map(([path, agg]) => ({
-      path,
-      views: agg.views,
-      avgDuration: agg.count > 0 ? Math.round(agg.totalDuration / agg.count / 1000) : 0,
-      avgScroll: agg.count > 0 ? agg.totalScroll / agg.count : 0,
-    }))
-    .sort((a, b) => b.views - a.views);
+  const rows = pages.map((p) => ({
+    path: p.path,
+    views: Number(p.views) || 0,
+    avgDuration: p.avg_duration_ms ? Math.round(Number(p.avg_duration_ms) / 1000) : 0,
+    avgScroll: p.avg_scroll_pct ? Number(p.avg_scroll_pct) : 0,
+  }));
 
   return (
     <div className="space-y-8">

@@ -79,10 +79,18 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
     const { from, to } = getDateRange(request.query as Record<string, unknown>);
 
     const result = await query(
-      `SELECT bucket, path, views, unique_visitors, avg_duration_ms, avg_scroll_pct,
-              CASE WHEN total_leaves > 0 THEN engaged_count::float / total_leaves ELSE 0 END AS engagement_rate
-       FROM page_stats_hourly
-       WHERE site_id = $1 AND bucket BETWEEN $2 AND $3
+      `SELECT path,
+              COUNT(*) FILTER (WHERE event = 'pageview') AS views,
+              COUNT(DISTINCT session_id) FILTER (WHERE event = 'pageview') AS unique_visitors,
+              AVG(duration_ms) FILTER (WHERE event = 'pageleave') AS avg_duration_ms,
+              AVG(scroll_max_pct) FILTER (WHERE event = 'pageleave') AS avg_scroll_pct,
+              CASE WHEN COUNT(*) FILTER (WHERE event = 'pageleave') > 0
+                   THEN COUNT(*) FILTER (WHERE event = 'pageleave' AND engaged = true)::float /
+                        COUNT(*) FILTER (WHERE event = 'pageleave')
+                   ELSE 0 END AS engagement_rate
+       FROM events
+       WHERE site_id = $1 AND time BETWEEN $2 AND $3
+       GROUP BY path
        ORDER BY views DESC`,
       [id, from, to]
     );
