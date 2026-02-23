@@ -4,9 +4,9 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 
 ## Packages
 
-- **packages/tracker** - Client-side tracking script (< 2KB gzipped). Vanilla JS, esbuild. Tracks pageviews, scroll depth, time on page, engagement, outbound clicks, SPA navigation. Outputs `dist/oa.js`.
-- **packages/api** - Fastify backend. Event ingestion, analytics queries, site/funnel/goal CRUD, JWT auth (register/login/me). PostgreSQL + TimescaleDB + Redis. Auto-migrates on startup. Serves tracker script at `/oa.js`.
-- **packages/dashboard** - Next.js 14 web UI. Tailwind + shadcn/ui + Recharts. JWT auth via localStorage (no NextAuth). All analytics pages, funnel builder, session explorer, live view. `/setup` page has Cloudflare Tunnel onboarding guide.
+- **packages/tracker** - Client-side tracking script (< 2KB gzipped). Vanilla JS, esbuild. Tracks pageviews, scroll depth, time on page, engagement, outbound clicks, SPA navigation. Outputs `dist/oa.js`. Uses `text/plain` content type to avoid CORS preflights with sendBeacon.
+- **packages/api** - Fastify backend. Event ingestion (`text/plain` JSON), analytics queries, site/funnel/goal CRUD, JWT auth (register/login/me, also accepts `?token=` query param for WebSocket). PostgreSQL + TimescaleDB + Redis pub/sub for live view. Auto-migrates on startup. Serves tracker script at `/oa.js`. Always allows localhost dashboard in CORS regardless of `CORS_ORIGIN` setting. Normalises site domains to bare hostnames on create/update.
+- **packages/dashboard** - Next.js 14 web UI. Tailwind + shadcn/ui + Recharts. JWT auth via localStorage (no NextAuth). All analytics pages, funnel builder, session explorer, live view (REST + WebSocket hybrid). Add Site wizard is 5 steps: Details, Deploy, Setup Guide, Script, Done - persists state in sessionStorage to survive Docker restarts. `/setup` page has Cloudflare Tunnel onboarding guide.
 - **packages/shared** - Shared TypeScript types, Zod validation schemas, and constants used across api and dashboard.
 
 ## Key Files
@@ -17,7 +17,7 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 
 ## Docker
 
-`docker compose up` runs everything. Requires `packages/tracker/dist/oa.js` to be built first (`npm run -w @openanalytics/tracker build`). Env vars: `DB_PASSWORD`, `JWT_SECRET` (optional `API_URL`, `DASHBOARD_URL` for remote). `TRACKER_URL` sets the public-facing URL for the tracking script tag (e.g. a Cloudflare Tunnel URL). `CORS_ORIGIN` supports comma-separated origins. Migrations run automatically on API startup.
+`docker compose up` runs everything. Requires `packages/tracker/dist/oa.js` to be built first (`npm run -w @openanalytics/tracker build`). Env vars: `DB_PASSWORD`, `JWT_SECRET` (optional `API_URL`, `DASHBOARD_URL` for remote). `TRACKER_URL` sets the public-facing URL for the tracking script tag (e.g. a Cloudflare Tunnel URL). `CORS_ORIGIN` supports comma-separated origins - always include `http://localhost:3100` so the dashboard can reach the API. Migrations run automatically on API startup.
 
 ## Database
 
@@ -34,3 +34,4 @@ PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-
 - kebab-case filenames
 - Zod for all request validation (shared schemas)
 - No cookies, no PII stored, IPs discarded after geo lookup
+- Tracker script must use raw `<script defer>` tag, not framework components like Next.js `<Script>` (they break `document.currentScript`)

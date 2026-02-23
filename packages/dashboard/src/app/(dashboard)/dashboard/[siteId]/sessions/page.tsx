@@ -25,13 +25,15 @@ export default function SessionsPage() {
   const { siteId } = useParams();
   const [sessions, setSessions] = useState<SessionRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState("7d");
 
   useEffect(() => {
+    setSessions(null);
     api.analytics
-      .sessions(siteId as string)
+      .sessions(siteId as string, `period=${period}`)
       .then((data) => setSessions((data as { sessions: SessionRow[] }).sessions))
       .catch(() => setError("Failed to load sessions"));
-  }, [siteId]);
+  }, [siteId, period]);
 
   if (error) return <p className="text-destructive">{error}</p>;
   if (!sessions) return <p className="text-muted-foreground">Loading...</p>;
@@ -40,7 +42,7 @@ export default function SessionsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Sessions</h1>
-        <DateRangePicker />
+        <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
       <Card>
@@ -77,8 +79,9 @@ export default function SessionsPage() {
                     <TableCell>{s.country ? <Badge variant="secondary">{s.country}</Badge> : "-"}</TableCell>
                     <TableCell>{s.device || "-"}</TableCell>
                     <TableCell>{s.was_engaged ? <Badge variant="secondary">Yes</Badge> : <span className="text-muted-foreground">No</span>}</TableCell>
-                    <TableCell className="text-right text-muted-foreground text-sm">
-                      {new Date(s.started_at).toLocaleTimeString()}
+                    <TableCell className="text-right text-muted-foreground text-sm whitespace-nowrap">
+                      {new Date(s.started_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}{" "}
+                      {new Date(s.started_at).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
                     </TableCell>
                   </TableRow>
                 );
