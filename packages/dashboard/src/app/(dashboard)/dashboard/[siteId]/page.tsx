@@ -1,16 +1,66 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { StatsCard } from "@/components/dashboard/stats-card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { LineChart } from "@/components/charts/line-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { mockOverview, mockChartData, mockTopPages, mockReferrers, mockCountries } from "@/lib/mock-data";
+import { api } from "@/lib/api";
 import { formatNumber, formatDuration, formatPercent } from "@/lib/utils";
 import { Users, Eye, Clock, ArrowDownRight, Sparkles } from "lucide-react";
 
+interface OverviewData {
+  pageviews: number;
+  unique_sessions: number;
+  avg_duration_ms: number | null;
+  avg_scroll_pct: number | null;
+  engagement_rate: number | null;
+  topPages: { path: string; views: number; visitors: number }[];
+  topReferrers: { referrer: string; count: number }[];
+  topCountries: { country: string; visitors: number }[];
+}
+
+interface TimeseriesPoint {
+  date: string;
+  visitors: number;
+  pageviews: number;
+  [key: string]: unknown;
+}
+
 export default function SiteOverviewPage() {
-  const o = mockOverview;
+  const { siteId } = useParams();
+  const [data, setData] = useState<OverviewData | null>(null);
+  const [chart, setChart] = useState<TimeseriesPoint[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      api.analytics.overview(siteId as string),
+      api.analytics.timeseries(siteId as string),
+    ])
+      .then(([overview, ts]) => {
+        setData(overview as OverviewData);
+        const timeseries = (ts as { timeseries: TimeseriesPoint[] }).timeseries;
+        setChart(timeseries.map((p) => ({
+          ...p,
+          date: new Date(p.date).toISOString().split("T")[0],
+          visitors: Number(p.visitors),
+          pageviews: Number(p.pageviews),
+        })));
+      })
+      .catch(() => setError("Failed to load overview data"));
+  }, [siteId]);
+
+  if (error) return <p className="text-destructive">{error}</p>;
+  if (!data) return <p className="text-muted-foreground">Loading...</p>;
+
+  const visitors = Number(data.unique_sessions) || 0;
+  const pageviews = Number(data.pageviews) || 0;
+  const avgTimeSec = data.avg_duration_ms ? Math.round(Number(data.avg_duration_ms) / 1000) : 0;
+  const avgScroll = data.avg_scroll_pct ? Number(data.avg_scroll_pct) : 0;
+  const engagement = data.engagement_rate ? Number(data.engagement_rate) * 100 : 0;
 
   return (
     <div className="space-y-8">
@@ -21,30 +71,32 @@ export default function SiteOverviewPage() {
 
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-        <StatsCard title="Visitors" value={formatNumber(o.visitors)} change={o.visitorsChange} icon={<Users className="h-4 w-4" />} />
-        <StatsCard title="Pageviews" value={formatNumber(o.pageviews)} change={o.pageviewsChange} icon={<Eye className="h-4 w-4" />} />
-        <StatsCard title="Avg. Time on Page" value={formatDuration(o.avgTimeOnPage)} change={o.avgTimeChange} icon={<Clock className="h-4 w-4" />} />
-        <StatsCard title="Avg. Scroll Depth" value={formatPercent(o.avgScrollDepth)} change={o.scrollChange} icon={<ArrowDownRight className="h-4 w-4" />} />
-        <StatsCard title="Engagement Rate" value={formatPercent(o.engagementRate)} change={o.engagementChange} icon={<Sparkles className="h-4 w-4" />} />
+        <StatsCard title="Visitors" value={formatNumber(visitors)} icon={<Users className="h-4 w-4" />} />
+        <StatsCard title="Pageviews" value={formatNumber(pageviews)} icon={<Eye className="h-4 w-4" />} />
+        <StatsCard title="Avg. Time on Page" value={formatDuration(avgTimeSec)} icon={<Clock className="h-4 w-4" />} />
+        <StatsCard title="Avg. Scroll Depth" value={formatPercent(avgScroll)} icon={<ArrowDownRight className="h-4 w-4" />} />
+        <StatsCard title="Engagement Rate" value={formatPercent(engagement)} icon={<Sparkles className="h-4 w-4" />} />
       </div>
 
       {/* Chart */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Visitors & Pageviews</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <LineChart
-            data={mockChartData}
-            xKey="date"
-            lines={[
-              { key: "visitors", color: "hsl(var(--primary))", name: "Visitors" },
-              { key: "pageviews", color: "#8b5cf6", name: "Pageviews" },
-            ]}
-            height={350}
-          />
-        </CardContent>
-      </Card>
+      {chart.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Visitors & Pageviews</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <LineChart
+              data={chart}
+              xKey="date"
+              lines={[
+                { key: "visitors", color: "hsl(var(--primary))", name: "Visitors" },
+                { key: "pageviews", color: "#8b5cf6", name: "Pageviews" },
+              ]}
+              height={350}
+            />
+          </CardContent>
+        </Card>
+      )}
 
       {/* Tables */}
       <div className="grid gap-4 md:grid-cols-3">
@@ -61,10 +113,10 @@ export default function SiteOverviewPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockTopPages.slice(0, 5).map((p) => (
+                {data.topPages.slice(0, 5).map((p) => (
                   <TableRow key={p.path}>
                     <TableCell className="font-mono text-xs">{p.path}</TableCell>
-                    <TableCell className="text-right">{p.views.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{Number(p.views).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -81,14 +133,14 @@ export default function SiteOverviewPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Source</TableHead>
-                  <TableHead className="text-right">Visitors</TableHead>
+                  <TableHead className="text-right">Visits</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockReferrers.slice(0, 5).map((r) => (
-                  <TableRow key={r.source}>
-                    <TableCell>{r.source}</TableCell>
-                    <TableCell className="text-right">{r.visitors.toLocaleString()}</TableCell>
+                {data.topReferrers.slice(0, 5).map((r) => (
+                  <TableRow key={r.referrer}>
+                    <TableCell>{r.referrer}</TableCell>
+                    <TableCell className="text-right">{Number(r.count).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -109,10 +161,10 @@ export default function SiteOverviewPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {mockCountries.slice(0, 5).map((c) => (
-                  <TableRow key={c.code}>
+                {data.topCountries.slice(0, 5).map((c) => (
+                  <TableRow key={c.country}>
                     <TableCell>{c.country}</TableCell>
-                    <TableCell className="text-right">{c.visitors.toLocaleString()}</TableCell>
+                    <TableCell className="text-right">{Number(c.visitors).toLocaleString()}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

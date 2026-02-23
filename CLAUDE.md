@@ -23,6 +23,10 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 
 PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-applied by `packages/api/src/db/migrate.ts` on startup. Unified `events` hypertable - all tracking data in one table, partitioned by time with continuous aggregates for fast dashboard queries.
 
+## Demo Seed
+
+`npm run -w @openanalytics/api seed:demo` creates a demo user (`demo@openanalytics.dev` / `demodemo123`), a demo site, 500 sessions of realistic sample data, 2 funnels, and 3 goals. Safe to re-run - clears existing demo events first.
+
 ## Conventions
 
 - TypeScript strict mode everywhere

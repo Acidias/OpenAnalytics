@@ -30,6 +30,11 @@ async function fetchAPI<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export function getWebSocketURL(path: string): string {
+  const base = API_BASE.replace(/^http/, "ws");
+  return `${base}${path}`;
+}
+
 export const api = {
   sites: {
     list: () => fetchAPI<{ sites: unknown[] }>("/api/sites"),
@@ -43,25 +48,27 @@ export const api = {
   },
   analytics: {
     overview: (siteId: string, params?: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/overview${params ? `?${params}` : ""}`),
+      fetchAPI(`/api/sites/${siteId}/overview${params ? `?${params}` : ""}`),
+    timeseries: (siteId: string, params?: string) =>
+      fetchAPI(`/api/sites/${siteId}/timeseries${params ? `?${params}` : ""}`),
     pages: (siteId: string, params?: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/pages${params ? `?${params}` : ""}`),
+      fetchAPI(`/api/sites/${siteId}/pages${params ? `?${params}` : ""}`),
     sessions: (siteId: string, params?: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/sessions${params ? `?${params}` : ""}`),
+      fetchAPI(`/api/sites/${siteId}/sessions${params ? `?${params}` : ""}`),
     session: (siteId: string, sid: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/sessions/${sid}`),
-    events: (siteId: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/events`),
-    event: (siteId: string, name: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/events/${name}`),
-    sources: (siteId: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/sources`),
-    geo: (siteId: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/geo`),
-    devices: (siteId: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/devices`),
+      fetchAPI(`/api/sites/${siteId}/sessions/${sid}`),
+    events: (siteId: string, params?: string) =>
+      fetchAPI(`/api/sites/${siteId}/events${params ? `?${params}` : ""}`),
+    event: (siteId: string, name: string, params?: string) =>
+      fetchAPI(`/api/sites/${siteId}/events/${name}${params ? `?${params}` : ""}`),
+    sources: (siteId: string, params?: string) =>
+      fetchAPI(`/api/sites/${siteId}/referrers${params ? `?${params}` : ""}`),
+    geo: (siteId: string, params?: string) =>
+      fetchAPI(`/api/sites/${siteId}/geo${params ? `?${params}` : ""}`),
+    devices: (siteId: string, params?: string) =>
+      fetchAPI(`/api/sites/${siteId}/devices${params ? `?${params}` : ""}`),
     live: (siteId: string) =>
-      fetchAPI(`/api/sites/${siteId}/analytics/live`),
+      fetchAPI(`/api/sites/${siteId}/live`),
   },
   funnels: {
     list: (siteId: string) =>
