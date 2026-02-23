@@ -18,7 +18,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6380}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -35,11 +35,11 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      CORS_ORIGIN: ${DASHBOARD_URL:-http://localhost:3000}
+      CORS_ORIGIN: http://localhost:${DASHBOARD_PORT:-3100}
       PORT: 3001
       HOST: 0.0.0.0
     ports:
-      - "3001:3001"
+      - "${API_PORT:-3101}:3001"
     volumes:
       - ./packages/tracker/dist/oa.js:/app/public/oa.js:ro
     depends_on:
@@ -52,11 +52,11 @@ services:
     build:
       context: ./packages/dashboard
       args:
-        NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3001}
+        NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
     environment:
-      NEXT_PUBLIC_API_URL: ${API_URL:-http://localhost:3001}
+      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
     ports:
-      - "3000:3000"
+      - "${DASHBOARD_PORT:-3100}:3000"
     depends_on:
       - api
 
