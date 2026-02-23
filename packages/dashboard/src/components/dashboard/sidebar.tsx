@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   BarChart3, Globe, Users, MousePointerClick, Activity,
-  Layers, Target, Zap, Monitor, MapPin, Settings, ArrowLeft, Home
+  Layers, Target, Zap, Monitor, MapPin, Settings, ArrowLeft, Home, BookOpen
 } from "lucide-react";
 
 const mainNav = [
   { label: "Sites", href: "/dashboard", icon: Home },
   { label: "Settings", href: "/settings", icon: Settings },
+  { label: "Setup Guide", href: "/setup", icon: BookOpen },
 ];
 
 function siteNav(siteId: string) {
