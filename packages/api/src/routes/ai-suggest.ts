@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import Anthropic from '@anthropic-ai/sdk';
 import { query } from '../db/connection';
 import { authMiddleware, verifySiteAccess } from '../middleware/auth';
+import { normalizeAndValidateCrawlTarget, resolveAndValidateCrawlHostname } from './crawl-target';
 
 const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 
@@ -252,6 +253,9 @@ async function crawlPage(pageUrl: string, path: string): Promise<string | null> 
   const timer = setTimeout(() => controller.abort(), 5000);
 
   try {
+    const parsedUrl = new URL(pageUrl);
+    await resolveAndValidateCrawlHostname(parsedUrl.hostname);
+
     const res = await fetch(pageUrl, {
       signal: controller.signal,
       headers: { 'User-Agent': 'OpenAnalytics-Bot/1.0' },
@@ -389,12 +393,14 @@ async function crawlPage(pageUrl: string, path: string): Promise<string | null> 
 }
 
 async function crawlSitePages(domain: string, topPaths: string[]): Promise<string | null> {
+  const target = normalizeAndValidateCrawlTarget(domain);
+
   // Always include homepage, then top visited pages
   const pathsToCheck = ['/', ...topPaths.filter(p => p !== '/')].slice(0, 5);
 
   const results = await Promise.allSettled(
     pathsToCheck.map(path => {
-      const fullUrl = `https://${domain}${path}`;
+      const fullUrl = new URL(path, target).toString();
       return crawlPage(fullUrl, path);
     })
   );
