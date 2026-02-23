@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@openanalytics/shared": "*",
     "fastify": "^5.2.1",
     "@fastify/cors": "^11.0.0",
     "@fastify/websocket": "^11.0.1",

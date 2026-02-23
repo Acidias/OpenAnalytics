@@ -2,6 +2,7 @@
   var d = document, w = window as any, s = d.currentScript as HTMLScriptElement;
   if (!s) return;
   var site = s.getAttribute('data-site');
+  if (!site) return;
   var apiBase = s.getAttribute('data-api') || (s.src.split('/oa.js')[0] + '/api');
   var endpoint = apiBase + '/event';
   var configEndpoint = apiBase + '/config/' + site;
@@ -16,8 +17,10 @@
   var pageEntryTime = Date.now();
   var maxScroll = 0;
   var engaged = false;
+  var leaveSent = false;
+  var engageTimer: ReturnType<typeof setTimeout> | null = null;
 
-  // Send helper — Beacon with XHR fallback
+  // Send helper - Beacon with XHR fallback
   function send(type: string, props?: any) {
     var payload: any = {
       s: site,
@@ -31,7 +34,13 @@
     if (props) payload.p = props;
     var data = JSON.stringify(payload);
     if (navigator.sendBeacon) {
-      navigator.sendBeacon(endpoint, data);
+      var ok = navigator.sendBeacon(endpoint, new Blob([data], { type: 'application/json' }));
+      if (!ok && type !== 'pageleave') {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', endpoint, true);
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.send(data);
+      }
     } else {
       var xhr = new XMLHttpRequest();
       xhr.open('POST', endpoint, true);
@@ -61,11 +70,22 @@
       engaged = true;
       send('engage', { after_ms: Date.now() - pageEntryTime });
     }
+    cleanupEngagement();
   }
 
-  setTimeout(markEngaged, 5000);
-  d.addEventListener('click', markEngaged, { once: true } as any);
-  d.addEventListener('keydown', markEngaged, { once: true } as any);
+  function setupEngagement() {
+    engageTimer = setTimeout(markEngaged, 5000);
+    d.addEventListener('click', markEngaged);
+    d.addEventListener('keydown', markEngaged);
+  }
+
+  function cleanupEngagement() {
+    if (engageTimer) { clearTimeout(engageTimer); engageTimer = null; }
+    d.removeEventListener('click', markEngaged);
+    d.removeEventListener('keydown', markEngaged);
+  }
+
+  setupEngagement();
 
   // Heartbeat every 30s
   setInterval(function () {
@@ -80,6 +100,8 @@
 
   // Page leave
   function onLeave() {
+    if (leaveSent) return;
+    leaveSent = true;
     send('pageleave', {
       duration_ms: Date.now() - pageEntryTime,
       scroll_max_pct: maxScroll,
@@ -110,21 +132,25 @@
   send('pageview');
 
   // SPA navigation
+  function resetPage() {
+    pageEntryTime = Date.now();
+    maxScroll = 0;
+    engaged = false;
+    leaveSent = false;
+    cleanupEngagement();
+    setupEngagement();
+    send('pageview');
+  }
+
   var origPush = history.pushState;
   history.pushState = function () {
     onLeave();
     origPush.apply(history, arguments as any);
-    pageEntryTime = Date.now();
-    maxScroll = 0;
-    engaged = false;
-    send('pageview');
+    resetPage();
   };
   w.addEventListener('popstate', function () {
     onLeave();
-    pageEntryTime = Date.now();
-    maxScroll = 0;
-    engaged = false;
-    send('pageview');
+    resetPage();
   });
 
   // Public API
@@ -133,21 +159,20 @@
     identify: function (traits: any) { send('identify', traits); }
   };
 
-  // Auto-track config
+  // Auto-track config (event delegation)
   function applyAutoTrack(rules: any[]) {
     rules.forEach(function (rule: any) {
-      var els = d.querySelectorAll(rule.selector);
-      for (var i = 0; i < els.length; i++) {
-        (function (el: Element) {
-          el.addEventListener(rule.trigger || 'click', function () {
-            var p: any = {};
-            if (rule.props) { for (var k in rule.props) p[k] = rule.props[k]; }
-            if (rule.captureText) p.text = ((el as HTMLElement).innerText || '').substring(0, 200);
-            if (rule.captureValue) p.value = (el as HTMLInputElement).value;
-            send(rule.event, p);
-          });
-        })(els[i]);
-      }
+      if (rule._bound) return;
+      rule._bound = true;
+      d.addEventListener(rule.trigger || 'click', function (e: Event) {
+        var el = (e.target as HTMLElement).closest ? (e.target as HTMLElement).closest(rule.selector) : null;
+        if (!el) return;
+        var p: any = {};
+        if (rule.props) { for (var k in rule.props) p[k] = rule.props[k]; }
+        if (rule.captureText) p.text = ((el as HTMLElement).innerText || '').substring(0, 200);
+        if (rule.captureValue) p.value = (el as HTMLInputElement).value;
+        send(rule.event, p);
+      });
     });
   }
 

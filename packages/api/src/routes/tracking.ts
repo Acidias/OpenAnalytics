@@ -1,42 +1,24 @@
 import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
 import geoip from 'geoip-lite';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const UAParser = require('ua-parser-js') as (ua: string) => { browser: { name?: string }; os: { name?: string } };
 import { query } from '../db/connection';
 import { redis } from '../db/redis';
 import { rateLimitMiddleware, checkHeartbeatDedup } from '../middleware/rateLimit';
+import { trackerPayloadSchema, classifyDevice } from '@openanalytics/shared';
 
-const eventSchema = z.object({
-  s: z.string().min(1).max(12),           // site public_id
-  sid: z.string().min(1).max(80),         // session_id
-  t: z.string().min(1).max(100),          // event type
-  u: z.string().max(500).optional(),      // URL path
-  r: z.string().max(500).nullable().optional(), // referrer
-  w: z.number().int().positive().optional(),    // viewport width
-  ts: z.number().positive(),              // client timestamp
-  p: z.record(z.unknown()).optional(),    // properties
-});
-
-function deviceFromWidth(w?: number): string {
-  if (!w) return 'desktop';
-  if (w < 768) return 'mobile';
-  if (w < 1024) return 'tablet';
-  return 'desktop';
-}
-
-function extractUtm(referrer?: string | null): Record<string, string | null> {
+function extractUtm(pagePath?: string | null): Record<string, string | null> {
   const result: Record<string, string | null> = {
     utm_source: null, utm_medium: null, utm_campaign: null,
     utm_term: null, utm_content: null,
   };
-  if (!referrer) return result;
+  if (!pagePath) return result;
   try {
-    const url = new URL(referrer);
+    const url = new URL(pagePath, 'http://d');
     for (const key of Object.keys(result)) {
       result[key] = url.searchParams.get(key);
     }
-  } catch { /* not a valid URL */ }
+  } catch { /* not a valid path */ }
   return result;
 }
 
@@ -44,7 +26,7 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
   fastify.post('/api/event', {
     preHandler: rateLimitMiddleware,
   }, async (request, reply) => {
-    const parseResult = eventSchema.safeParse(request.body);
+    const parseResult = trackerPayloadSchema.safeParse(request.body);
     if (!parseResult.success) {
       return reply.status(400).send({ error: 'Invalid event data', details: parseResult.error.issues });
     }
@@ -94,8 +76,8 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     const browser = ua.browser.name || null;
     const os = ua.os.name || null;
 
-    const device = deviceFromWidth(data.w);
-    const utm = extractUtm(data.r);
+    const device = classifyDevice(data.w);
+    const utm = extractUtm(data.u);
 
     // Extract behavioral fields from properties
     const props = data.p || {};
