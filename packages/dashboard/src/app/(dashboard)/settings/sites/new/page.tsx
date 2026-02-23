@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   Card,
   CardContent,
@@ -302,6 +302,46 @@ const SETUP_STEPS = [
 
 const STEP_LABELS = ["Details", "Deploy", "Setup", "Script", "Done"];
 
+/* ---------- Session storage persistence ---------- */
+
+const WIZARD_STORAGE_KEY = "oa-new-site-wizard";
+
+interface WizardState {
+  step: number;
+  siteName: string;
+  domain: string;
+  publicId: string;
+  deploymentChoice: "local" | null;
+  tunnelUrl: string;
+}
+
+function loadWizardState(): Partial<WizardState> {
+  if (typeof window === "undefined") return {};
+  try {
+    const raw = sessionStorage.getItem(WIZARD_STORAGE_KEY);
+    if (!raw) return {};
+    return JSON.parse(raw) as Partial<WizardState>;
+  } catch {
+    return {};
+  }
+}
+
+function saveWizardState(state: WizardState) {
+  try {
+    sessionStorage.setItem(WIZARD_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // sessionStorage full or unavailable - not critical
+  }
+}
+
+function clearWizardState() {
+  try {
+    sessionStorage.removeItem(WIZARD_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
 /* ---------- Main component ---------- */
 
 export default function NewSitePage() {
@@ -322,6 +362,30 @@ export default function NewSitePage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [expandedSteps, setExpandedSteps] = useState<Set<number>>(new Set());
   const [llmPromptExpanded, setLlmPromptExpanded] = useState(false);
+
+  // Restore wizard state from sessionStorage on mount
+  useEffect(() => {
+    const saved = loadWizardState();
+    if (saved.step && saved.step > 1 && saved.publicId) {
+      setStep(saved.step);
+      setSiteName(saved.siteName || "");
+      setDomain(saved.domain || "");
+      setPublicId(saved.publicId);
+      setDeploymentChoice(saved.deploymentChoice ?? null);
+      setTunnelUrl(saved.tunnelUrl || process.env.NEXT_PUBLIC_TRACKER_URL || "");
+    }
+  }, []);
+
+  // Persist wizard state to sessionStorage whenever key values change
+  const persistState = useCallback(() => {
+    if (publicId) {
+      saveWizardState({ step, siteName, domain, publicId, deploymentChoice, tunnelUrl });
+    }
+  }, [step, siteName, domain, publicId, deploymentChoice, tunnelUrl]);
+
+  useEffect(() => {
+    persistState();
+  }, [persistState]);
 
   const scriptTag = publicId
     ? `<script defer data-site="${publicId}" src="${tunnelUrl.replace(/\/$/, "")}/oa.js"></script>`
@@ -713,7 +777,10 @@ export default function NewSitePage() {
           <CardContent>
             <Button
               className="w-full"
-              onClick={() => (window.location.href = "/dashboard")}
+              onClick={() => {
+                clearWizardState();
+                window.location.href = "/dashboard";
+              }}
             >
               Go to Dashboard
             </Button>
