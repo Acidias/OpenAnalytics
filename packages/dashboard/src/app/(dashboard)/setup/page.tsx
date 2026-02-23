@@ -156,7 +156,7 @@ export default function SetupGuidePage() {
             Add these to your <code className="bg-muted px-1 rounded">.env</code> file in the project root:
           </p>
           <CodeBlock
-            code={`# Public URL where the tracking script is served\nTRACKER_URL=https://analytics.yourdomain.com\n\n# Allow your website(s) to send data to the API\nCORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com`}
+            code={`# Public URL where the tracking script is served\nTRACKER_URL=https://analytics.yourdomain.com\n\n# Allow your website(s) to send data to the API\n# localhost is included so the dashboard can still reach the API\nCORS_ORIGIN=http://localhost:3100,https://yourdomain.com,https://www.yourdomain.com`}
             id="step5"
             copiedId={copiedId}
             onCopy={handleCopy}

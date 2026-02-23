@@ -19,12 +19,18 @@ interface Site {
 export default function DashboardPage() {
   const [sites, setSites] = useState<Site[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
 
   useEffect(() => {
     api.sites
       .list()
       .then((data) => setSites((data as { sites: Site[] }).sites))
-      .catch(() => setSites([]))
+      .catch((err) => {
+        setSites([]);
+        setFetchError(
+          err instanceof Error ? err.message : "Failed to load sites"
+        );
+      })
       .finally(() => setLoading(false));
   }, []);
 
@@ -50,7 +56,18 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {sites.length === 0 ? (
+      {fetchError && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 p-4 text-sm">
+          <p className="font-medium text-destructive">
+            Could not load sites from the API
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            {fetchError}. Check that the API is running and reachable.
+          </p>
+        </div>
+      )}
+
+      {sites.length === 0 && !fetchError ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <Globe className="h-12 w-12 text-muted-foreground mb-4" />

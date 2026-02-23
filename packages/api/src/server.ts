@@ -42,10 +42,22 @@ async function main() {
     trustProxy: true,
   });
 
-  // Plugins - CORS_ORIGIN supports comma-separated origins (e.g. "http://localhost:3100,https://clawpost.dev")
+  // Plugins - CORS_ORIGIN supports comma-separated origins (e.g. "https://yourdomain.com,https://www.yourdomain.com")
+  // The localhost dashboard origin is always allowed so admin access works
+  // regardless of what external origins are configured.
   const corsOrigin = process.env.CORS_ORIGIN;
+  let allowedOrigins: string[] | true = true;
+  if (corsOrigin) {
+    const dashboardPort = process.env.DASHBOARD_PORT || '3100';
+    const localOrigin = `http://localhost:${dashboardPort}`;
+    const origins = corsOrigin.split(',').map((o) => o.trim()).filter(Boolean);
+    if (!origins.includes(localOrigin)) {
+      origins.push(localOrigin);
+    }
+    allowedOrigins = origins;
+  }
   await fastify.register(cors, {
-    origin: corsOrigin ? corsOrigin.split(',').map((o) => o.trim()) : true,
+    origin: allowedOrigins,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await fastify.register(websocket);

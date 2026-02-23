@@ -93,7 +93,7 @@ Guide the user through these steps one at a time. After each step, wait for conf
 5. Configure environment variables
    - Add to the .env file in the OpenAnalytics project root:
      TRACKER_URL=https://analytics.yourdomain.com
-     CORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com
+     CORS_ORIGIN=http://localhost:3100,https://yourdomain.com,https://www.yourdomain.com
    - TRACKER_URL sets the public-facing URL for the script tag
    - CORS_ORIGIN is comma-separated list of origins allowed to send data
 
@@ -232,7 +232,7 @@ const SETUP_STEPS = [
           project root:
         </p>
         <CodeBlock
-          code={`# Public URL where the tracking script is served\nTRACKER_URL=https://analytics.yourdomain.com\n\n# Allow your website(s) to send data to the API\nCORS_ORIGIN=https://yourdomain.com,https://www.yourdomain.com`}
+          code={`# Public URL where the tracking script is served\nTRACKER_URL=https://analytics.yourdomain.com\n\n# Allow your website(s) to send data to the API\n# localhost is included so the dashboard can still reach the API\nCORS_ORIGIN=http://localhost:3100,https://yourdomain.com,https://www.yourdomain.com`}
           id="guide-5"
           copiedId={copiedId}
           onCopy={onCopy}
