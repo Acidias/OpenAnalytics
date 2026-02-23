@@ -9,7 +9,22 @@ import { api } from "@/lib/api";
 import {
   Sparkles, Target, Layers, MousePointerClick, Check, Loader2, ChevronRight,
 } from "lucide-react";
-import type { AISuggestResponse, AISuggestion } from "@openanalytics/shared";
+interface AISuggestion<T = unknown> {
+  id: string;
+  description: string;
+  data: T;
+}
+
+interface AISuggestResponse {
+  funnels: AISuggestion[];
+  goals: AISuggestion[];
+  rules: AISuggestion[];
+  context: {
+    total_pages: number;
+    total_events: number;
+    crawled: boolean;
+  };
+}
 
 interface FunnelStep {
   position: number;
