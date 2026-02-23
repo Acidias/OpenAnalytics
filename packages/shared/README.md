@@ -17,6 +17,6 @@ Shared TypeScript types, validation schemas, and utilities used across all packa
 ## Usage
 
 ```typescript
-import { TrackingEvent, Session, Funnel, AutoTrackRule } from '@openanalytics/shared';
-import { trackingEventSchema, funnelSchema } from '@openanalytics/shared/schemas';
+import type { TrackingEvent, Session, Funnel, AutoTrackRule } from '@openanalytics/shared';
+import { trackerPayloadSchema, createFunnelSchema } from '@openanalytics/shared';
 ```

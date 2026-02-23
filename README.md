@@ -143,16 +143,16 @@ OpenAnalytics is built for a world where privacy matters:
 ## Roadmap
 
 - [x] Project architecture and planning
-- [ ] Core tracking script
-- [ ] Ingestion API with real-time processing
-- [ ] Dashboard with visitor, page, and referrer views
-- [ ] Geographic and device analytics
-- [ ] Custom event tracking
-- [ ] UTM campaign tracking
-- [ ] Session explorer (browse visitor journeys)
-- [ ] Dashboard-configurable auto-track rules
-- [ ] Visual funnel builder with conversion analysis
-- [ ] Goal tracking with alerts
+- [x] Core tracking script (< 2KB gzipped)
+- [x] Ingestion API with real-time processing
+- [x] Dashboard with visitor, page, and referrer views
+- [x] Geographic and device analytics
+- [x] Custom event tracking
+- [x] UTM campaign tracking
+- [x] Session explorer (browse visitor journeys)
+- [x] Dashboard-configurable auto-track rules
+- [x] Visual funnel builder with conversion analysis
+- [x] Goal tracking
 - [ ] Team access and shared dashboards
 - [ ] REST API for programmatic access
 - [ ] Weekly email reports

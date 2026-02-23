@@ -82,7 +82,6 @@ oa.track('onboarding_step', { step: 3, name: 'connect_account' });
 
 ```bash
 cd packages/tracker
-npm run build     # Build and minify
-npm run size      # Check gzipped size
-npm run test      # Run tests
+npm run build         # Build and minify with esbuild
+npm run build:check   # Check raw and gzipped size
 ```

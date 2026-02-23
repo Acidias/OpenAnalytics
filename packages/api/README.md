@@ -86,8 +86,8 @@ Event → Validate (Zod) → Rate-limit (Redis)
 
 ```bash
 cd packages/api
-cp .env.example .env
-npm run dev       # Start with hot reload
-npm run test      # Run tests
-npm run migrate   # Run database migrations
+npm run dev         # Start with hot reload (tsx watch)
+npm run build       # Compile TypeScript
+npm run typecheck   # Type-check without emitting
+npm run start       # Run compiled output
 ```

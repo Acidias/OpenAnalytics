@@ -44,8 +44,7 @@ The web dashboard for viewing analytics, configuring tracking, and building funn
 
 ```bash
 cd packages/dashboard
-cp .env.example .env.local
 npm run dev       # Start on localhost:3000
 npm run build     # Production build
-npm run test      # Run tests
+npm run lint      # Lint with ESLint
 ```

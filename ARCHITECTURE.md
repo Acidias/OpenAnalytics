@@ -1,4 +1,4 @@
-# Technical Plan
+# Architecture
 
 Internal architecture decisions and implementation notes.
 
@@ -756,7 +756,3 @@ This query is dynamically generated based on the funnel definition. The API buil
 
 Events per pageview are higher now (~3-4 events per page: view, heartbeats, leave) — pricing based on pageview equivalents, not raw events.
 
----
-
-*Architecture: Claude Opus 4.6 (anthropic/claude-opus-4-6) — February 21, 2026*
-*Updated: Enhanced with behavioral tracking, session management, dashboard-configurable funnels*
