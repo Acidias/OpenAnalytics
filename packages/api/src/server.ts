@@ -14,9 +14,8 @@ import autotrackRoutes from './routes/autotrack';
 import authRoutes from './routes/auth';
 import { connectRedis } from './db/redis';
 
-const BASE_PORT = parseInt(process.env.PORT || '3001', 10);
+const PORT = parseInt(process.env.PORT || '3001', 10);
 const HOST = process.env.HOST || '0.0.0.0';
-const MAX_PORT_RETRIES = 10;
 
 // Pre-load tracker script so we don't read from disk on every request
 const TRACKER_PATH = path.resolve(__dirname, '../public/oa.js');
@@ -90,28 +89,18 @@ async function main() {
     fastify.log.warn('Redis connection failed, continuing without real-time features');
   }
 
-  // Start with auto-increment on port conflict
-  let port = BASE_PORT;
-  for (let attempt = 0; attempt < MAX_PORT_RETRIES; attempt++) {
-    try {
-      await fastify.listen({ port, host: HOST });
-      console.log('');
-      console.log('  OpenAnalytics API ready');
-      console.log(`  -> http://localhost:${port}`);
-      console.log(`  -> Health:  http://localhost:${port}/health`);
-      console.log(`  -> Tracker: http://localhost:${port}/oa.js`);
-      console.log('');
-      return;
-    } catch (err: any) {
-      if (err.code === 'EADDRINUSE') {
-        fastify.log.warn(`Port ${port} in use, trying ${port + 1}...`);
-        port++;
-      } else {
-        throw err;
-      }
-    }
-  }
-  throw new Error(`Could not find an available port (tried ${BASE_PORT}-${port - 1})`);
+  // Suppress Fastify's per-interface "Server listening at" lines (e.g. 172.x.x.x)
+  // by temporarily raising the log level during listen, then restoring it
+  const originalLevel = fastify.log.level;
+  fastify.log.level = 'warn';
+  await fastify.listen({ port: PORT, host: HOST });
+  fastify.log.level = originalLevel;
+  console.log('');
+  console.log('  OpenAnalytics API ready');
+  console.log(`  -> http://localhost:${PORT}`);
+  console.log(`  -> Health:  http://localhost:${PORT}/health`);
+  console.log(`  -> Tracker: http://localhost:${PORT}/oa.js`);
+  console.log('');
 }
 
 main().catch((err) => {

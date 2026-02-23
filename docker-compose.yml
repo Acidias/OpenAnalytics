@@ -36,10 +36,10 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       CORS_ORIGIN: http://localhost:${DASHBOARD_PORT:-3100}
-      PORT: 3001
+      PORT: ${API_PORT:-3101}
       HOST: 0.0.0.0
     ports:
-      - "${API_PORT:-3101}:3001"
+      - "${API_PORT:-3101}:${API_PORT:-3101}"
     volumes:
       - ./packages/tracker/dist/oa.js:/app/public/oa.js:ro
     depends_on:
@@ -55,9 +55,10 @@ services:
         NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
     environment:
       HOSTNAME: 0.0.0.0
+      PORT: ${DASHBOARD_PORT:-3100}
       NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
     ports:
-      - "${DASHBOARD_PORT:-3100}:3000"
+      - "${DASHBOARD_PORT:-3100}:${DASHBOARD_PORT:-3100}"
     depends_on:
       - api
 
