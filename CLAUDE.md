@@ -6,7 +6,7 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 
 - **packages/tracker** - Client-side tracking script (< 2KB gzipped). Vanilla JS, esbuild. Tracks pageviews, scroll depth, time on page, engagement, outbound clicks, SPA navigation. Outputs `dist/oa.js`.
 - **packages/api** - Fastify backend. Event ingestion, analytics queries, site/funnel/goal CRUD, JWT auth (register/login/me). PostgreSQL + TimescaleDB + Redis. Auto-migrates on startup. Serves tracker script at `/oa.js`.
-- **packages/dashboard** - Next.js 14 web UI. Tailwind + shadcn/ui + Recharts. JWT auth via localStorage (no NextAuth). All analytics pages, funnel builder, session explorer, live view.
+- **packages/dashboard** - Next.js 14 web UI. Tailwind + shadcn/ui + Recharts. JWT auth via localStorage (no NextAuth). All analytics pages, funnel builder, session explorer, live view. `/setup` page has Cloudflare Tunnel onboarding guide.
 - **packages/shared** - Shared TypeScript types, Zod validation schemas, and constants used across api and dashboard.
 
 ## Key Files
