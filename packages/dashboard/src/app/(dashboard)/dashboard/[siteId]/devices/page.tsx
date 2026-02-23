@@ -30,13 +30,15 @@ export default function DevicesPage() {
   const { siteId } = useParams();
   const [data, setData] = useState<DevicesData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState("7d");
 
   useEffect(() => {
+    setData(null);
     api.analytics
-      .devices(siteId as string)
+      .devices(siteId as string, `period=${period}`)
       .then((d) => setData(d as DevicesData))
       .catch(() => setError("Failed to load device data"));
-  }, [siteId]);
+  }, [siteId, period]);
 
   if (error) return <p className="text-destructive">{error}</p>;
   if (!data) return <p className="text-muted-foreground">Loading...</p>;
@@ -49,7 +51,7 @@ export default function DevicesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Devices</h1>
-        <DateRangePicker />
+        <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-3">

@@ -20,13 +20,15 @@ export default function PagesPage() {
   const { siteId } = useParams();
   const [pages, setPages] = useState<PageRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState("7d");
 
   useEffect(() => {
+    setPages(null);
     api.analytics
-      .pages(siteId as string)
+      .pages(siteId as string, `period=${period}`)
       .then((data) => setPages((data as { pages: PageRow[] }).pages))
       .catch(() => setError("Failed to load page data"));
-  }, [siteId]);
+  }, [siteId, period]);
 
   if (error) return <p className="text-destructive">{error}</p>;
   if (!pages) return <p className="text-muted-foreground">Loading...</p>;
@@ -63,7 +65,7 @@ export default function PagesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Pages</h1>
-        <DateRangePicker />
+        <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
       <Card>

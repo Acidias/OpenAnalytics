@@ -18,13 +18,15 @@ export default function SourcesPage() {
   const { siteId } = useParams();
   const [referrers, setReferrers] = useState<ReferrerRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState("7d");
 
   useEffect(() => {
+    setReferrers(null);
     api.analytics
-      .sources(siteId as string)
+      .sources(siteId as string, `period=${period}`)
       .then((data) => setReferrers((data as { referrers: ReferrerRow[] }).referrers))
       .catch(() => setError("Failed to load sources"));
-  }, [siteId]);
+  }, [siteId, period]);
 
   if (error) return <p className="text-destructive">{error}</p>;
   if (!referrers) return <p className="text-muted-foreground">Loading...</p>;
@@ -44,7 +46,7 @@ export default function SourcesPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Sources</h1>
-        <DateRangePicker />
+        <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
       <div className="space-y-4">

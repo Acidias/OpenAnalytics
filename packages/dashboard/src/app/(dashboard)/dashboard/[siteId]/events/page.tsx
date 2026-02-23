@@ -18,13 +18,15 @@ export default function EventsPage() {
   const { siteId } = useParams();
   const [events, setEvents] = useState<EventRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState("7d");
 
   useEffect(() => {
+    setEvents(null);
     api.analytics
-      .events(siteId as string)
+      .events(siteId as string, `period=${period}`)
       .then((data) => setEvents((data as { events: EventRow[] }).events))
       .catch(() => setError("Failed to load events"));
-  }, [siteId]);
+  }, [siteId, period]);
 
   if (error) return <p className="text-destructive">{error}</p>;
   if (!events) return <p className="text-muted-foreground">Loading...</p>;
@@ -33,7 +35,7 @@ export default function EventsPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Custom Events</h1>
-        <DateRangePicker />
+        <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
       <Card>
