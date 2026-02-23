@@ -19,10 +19,44 @@ interface LiveEvent {
 const MAX_EVENTS = 50;
 const ACTIVE_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
+function LiveSkeleton() {
+  return (
+    <div className="space-y-6">
+      {/* Hero card skeleton */}
+      <div className="rounded-lg border bg-card p-8">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-12 w-12 rounded-full bg-muted animate-pulse" />
+          <div className="h-12 w-20 rounded bg-muted animate-pulse" />
+          <div className="h-4 w-40 rounded bg-muted animate-pulse" />
+        </div>
+      </div>
+      {/* Feed skeleton */}
+      <div className="rounded-lg border bg-card p-6 space-y-3">
+        <div className="h-5 w-32 rounded bg-muted animate-pulse mb-4" />
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="flex items-center gap-3">
+            <div className="h-2.5 w-2.5 rounded-full bg-muted animate-pulse" />
+            <div className="h-5 w-16 rounded bg-muted animate-pulse" />
+            <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+            <div className="h-4 w-12 rounded bg-muted animate-pulse ml-auto" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function getEventDotColour(event: string): string {
+  if (event === "pageview") return "bg-emerald-500";
+  if (event === "engage") return "bg-blue-500";
+  return "bg-amber-500";
+}
+
 export default function LivePage() {
   const { siteId } = useParams();
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [connected, setConnected] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const wsRef = useRef<WebSocket | null>(null);
 
   // Load recent events from the DB so the page shows current visitors immediately
@@ -38,7 +72,8 @@ export default function LivePage() {
       })
       .catch(() => {
         // Non-critical - WebSocket will provide events shortly
-      });
+      })
+      .finally(() => setInitialLoading(false));
   }, [siteId]);
 
   // WebSocket for real-time streaming
@@ -81,11 +116,25 @@ export default function LivePage() {
     return `${Math.floor(diff / 60)}m ago`;
   }
 
+  if (initialLoading) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center gap-3">
+          <Zap className="h-6 w-6 text-amber-500" />
+          <h1 className="text-2xl font-semibold">Live</h1>
+        </div>
+        <LiveSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
+      {/* Header */}
       <div className="flex items-center gap-3">
-        <h1 className="text-3xl font-bold tracking-tight">Live</h1>
-        <div className="flex items-center gap-2">
+        <Zap className="h-6 w-6 text-amber-500" />
+        <h1 className="text-2xl font-semibold">Live</h1>
+        <div className="flex items-center gap-2 ml-2">
           <span className="relative flex h-3 w-3">
             {connected ? (
               <>
@@ -96,40 +145,88 @@ export default function LivePage() {
               <span className="relative inline-flex rounded-full h-3 w-3 bg-gray-400" />
             )}
           </span>
-          <span className="text-muted-foreground text-sm">{connected ? "Connected" : "Connecting..."}</span>
+          <span className="text-muted-foreground text-sm">
+            {connected ? "Connected" : "Connecting..."}
+          </span>
         </div>
       </div>
 
-      <Card>
-        <CardContent className="pt-6">
-          <div className="text-center py-8">
-            <Zap className="h-12 w-12 text-primary mx-auto mb-4" />
-            <div className="text-5xl font-bold">{activeSessions.size}</div>
-            <p className="text-muted-foreground mt-2">active visitors (last 5 min)</p>
-          </div>
-        </CardContent>
+      {/* Active visitors hero card */}
+      <Card className="overflow-hidden border-0">
+        <div className="bg-gradient-to-br from-emerald-500/10 via-blue-500/10 to-purple-500/10">
+          <CardContent className="pt-8 pb-8">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center h-16 w-16 rounded-full bg-emerald-500/10 mb-4">
+                <Zap className="h-8 w-8 text-emerald-500" />
+              </div>
+              <div className="text-6xl font-bold tabular-nums">
+                {activeSessions.size}
+              </div>
+              <p className="text-muted-foreground mt-2 text-sm">
+                active visitors in the last 5 minutes
+              </p>
+            </div>
+          </CardContent>
+        </div>
       </Card>
 
+      {/* Live event feed */}
       <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Live Event Feed</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            Live Event Feed
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {events.length === 0 ? (
-            <p className="text-muted-foreground text-sm py-4 text-center">
-              Waiting for events... Visit your site to see live data.
-            </p>
+            <div className="py-12 text-center">
+              <Zap className="h-8 w-8 text-muted-foreground mx-auto mb-3 opacity-40" />
+              <p className="text-muted-foreground text-sm">
+                Waiting for events... Visit your site to see live data.
+              </p>
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-1">
               {events.map((e, i) => (
-                <div key={i} className="flex items-center gap-3 text-sm">
-                  <span className="relative flex h-2 w-2">
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                <div
+                  key={`${e.session_id}-${e.time}-${i}`}
+                  className="flex items-center gap-3 text-sm rounded-md px-3 py-2 hover:bg-muted/50 transition-colors animate-in fade-in slide-in-from-top-1 duration-300"
+                  style={{ animationDelay: `${i * 20}ms`, animationFillMode: "backwards" }}
+                >
+                  {/* Coloured dot */}
+                  <span className="relative flex h-2.5 w-2.5 shrink-0">
+                    <span
+                      className={`relative inline-flex rounded-full h-2.5 w-2.5 ${getEventDotColour(e.event)}`}
+                    />
                   </span>
-                  <Badge variant="outline" className="text-xs">{e.event}</Badge>
-                  <span className="font-mono text-muted-foreground">{e.path || "-"}</span>
-                  {e.country && <Badge variant="secondary" className="text-xs">{e.country}</Badge>}
-                  <span className="text-xs text-muted-foreground ml-auto">{timeAgo(e.time)}</span>
+
+                  {/* Event type badge */}
+                  <Badge
+                    variant="outline"
+                    className="text-xs font-medium min-w-[72px] justify-center"
+                  >
+                    {e.event}
+                  </Badge>
+
+                  {/* Path */}
+                  <span className="font-mono text-muted-foreground truncate">
+                    {e.path || "-"}
+                  </span>
+
+                  {/* Country */}
+                  {e.country && (
+                    <Badge
+                      variant="secondary"
+                      className="text-xs shrink-0"
+                    >
+                      {e.country}
+                    </Badge>
+                  )}
+
+                  {/* Timestamp */}
+                  <span className="text-xs text-muted-foreground ml-auto shrink-0 tabular-nums">
+                    {timeAgo(e.time)}
+                  </span>
                 </div>
               ))}
             </div>
