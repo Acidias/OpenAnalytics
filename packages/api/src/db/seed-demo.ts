@@ -52,8 +52,11 @@ const paths = ['/', '/pricing', '/features', '/about', '/contact',
   '/blog/getting-started', '/blog/analytics-tips', '/blog/privacy-first',
   '/docs/api', '/docs/setup', '/docs/tracker', '/signup'];
 
-const referrers = ['google.com', null, 'twitter.com', 'github.com',
-  'reddit.com', 'hackernews', 'linkedin.com', 'producthunt.com'];
+const referrers = [
+  'https://www.google.com/', null, 'https://twitter.com/', 'https://github.com/',
+  'https://www.reddit.com/', 'https://news.ycombinator.com/', 'https://www.linkedin.com/',
+  'https://www.producthunt.com/',
+];
 const referrerWeights = [40, 20, 15, 10, 5, 4, 3, 3];
 
 const countries = ['US', 'GB', 'DE', 'FR', 'CA', 'JP', 'AU', 'NL', 'IN', 'BR'];
