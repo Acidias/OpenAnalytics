@@ -29,29 +29,55 @@ interface TimeseriesPoint {
   [key: string]: unknown;
 }
 
+const PERIOD_BUCKETS: Record<string, string> = {
+  "24h": "5 minutes",
+  "7d": "1 hour",
+  "30d": "1 day",
+  "90d": "1 day",
+  "12m": "1 week",
+};
+
+function formatDate(iso: string, period: string): string {
+  const d = new Date(iso);
+  switch (period) {
+    case "24h":
+      return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+    case "7d":
+      return d.toLocaleDateString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit" });
+    default:
+      return d.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+  }
+}
+
 export default function SiteOverviewPage() {
   const { siteId } = useParams();
   const [data, setData] = useState<OverviewData | null>(null);
   const [chart, setChart] = useState<TimeseriesPoint[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [period, setPeriod] = useState("7d");
 
   useEffect(() => {
+    setData(null);
+    setChart([]);
+    const bucket = PERIOD_BUCKETS[period] || "1 day";
+    const params = `period=${period}&bucket=${bucket}`;
+
     Promise.all([
-      api.analytics.overview(siteId as string),
-      api.analytics.timeseries(siteId as string),
+      api.analytics.overview(siteId as string, `period=${period}`),
+      api.analytics.timeseries(siteId as string, params),
     ])
       .then(([overview, ts]) => {
         setData(overview as OverviewData);
         const timeseries = (ts as { timeseries: TimeseriesPoint[] }).timeseries;
         setChart(timeseries.map((p) => ({
           ...p,
-          date: new Date(p.date).toISOString().split("T")[0],
+          date: formatDate(p.date, period),
           visitors: Number(p.visitors),
           pageviews: Number(p.pageviews),
         })));
       })
       .catch(() => setError("Failed to load overview data"));
-  }, [siteId]);
+  }, [siteId, period]);
 
   if (error) return <p className="text-destructive">{error}</p>;
   if (!data) return <p className="text-muted-foreground">Loading...</p>;
@@ -66,7 +92,7 @@ export default function SiteOverviewPage() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Overview</h1>
-        <DateRangePicker />
+        <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
       {/* Stats Cards */}

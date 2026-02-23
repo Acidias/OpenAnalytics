@@ -14,7 +14,7 @@ export function LineChart({ data, xKey, lines, height = 300 }: LineChartProps) {
     <ResponsiveContainer width="100%" height={height}>
       <RechartsLineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey={xKey} className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
+        <XAxis dataKey={xKey} className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} tickLine={false} axisLine={false} interval="preserveStartEnd" minTickGap={40} />
         <YAxis className="text-xs" tick={{ fill: "hsl(var(--muted-foreground))" }} tickLine={false} axisLine={false} />
         <Tooltip
           contentStyle={{ backgroundColor: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: "8px", fontSize: "12px" }}

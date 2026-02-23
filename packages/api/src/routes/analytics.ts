@@ -242,18 +242,22 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
     });
   });
 
-  // Timeseries (daily visitors + pageviews)
+  // Timeseries (visitors + pageviews with adaptive granularity)
+  const ALLOWED_BUCKETS = ['1 minute', '5 minutes', '15 minutes', '1 hour', '1 day', '1 week'];
+
   fastify.get<{ Params: { id: string }; Querystring: Record<string, unknown> }>('/api/sites/:id/timeseries', async (request) => {
     const { id } = request.params;
     const { from, to } = getDateRange(request.query as Record<string, unknown>);
+    const rawBucket = (request.query as Record<string, string>).bucket || '1 day';
+    const bucket = ALLOWED_BUCKETS.includes(rawBucket) ? rawBucket : '1 day';
 
     const result = await query(
-      `SELECT time_bucket('1 day', time) AS date,
+      `SELECT time_bucket($4::interval, time) AS date,
               COUNT(*) FILTER (WHERE event = 'pageview') AS pageviews,
               COUNT(DISTINCT session_id) AS visitors
        FROM events WHERE site_id = $1 AND time BETWEEN $2 AND $3
        GROUP BY date ORDER BY date`,
-      [id, from, to]
+      [id, from, to, bucket]
     );
     return { timeseries: result.rows };
   });
