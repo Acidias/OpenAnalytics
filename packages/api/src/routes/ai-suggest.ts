@@ -102,7 +102,7 @@ async function gatherContext(siteId: string) {
   const [pages, flows, customEvents, referrers, funnels, goals, rules] = await Promise.all([
     // Top 20 pages
     query(
-      `SELECT path, COUNT(*) AS views, COUNT(DISTINCT visitor_id) AS visitors
+      `SELECT path, COUNT(*) AS views, COUNT(DISTINCT session_id) AS visitors
        FROM events
        WHERE site_id = $1 AND event = 'pageview' AND time BETWEEN $2 AND $3
        GROUP BY path ORDER BY views DESC LIMIT 20`,
