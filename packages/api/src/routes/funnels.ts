@@ -92,6 +92,13 @@ export default async function funnelRoutes(fastify: FastifyInstance) {
     const from = request.query.from || new Date(Date.now() - 30 * 86400000).toISOString();
     const to = request.query.to || new Date().toISOString();
 
+    // Get funnel name (also serves as 404 check)
+    const funnelResult = await query(
+      'SELECT name FROM funnels WHERE id = $1 AND site_id = $2', [fid, id]
+    );
+    if (funnelResult.rows.length === 0) return reply.status(404).send({ error: 'Funnel not found' });
+    const funnelName = funnelResult.rows[0].name;
+
     // Get funnel steps
     const stepsResult = await query(
       'SELECT * FROM funnel_steps WHERE funnel_id = $1 ORDER BY position', [fid]
@@ -153,7 +160,7 @@ export default async function funnelRoutes(fastify: FastifyInstance) {
     }
 
     // Build final SELECT
-    const countSelects = steps.map((_, i) => `(SELECT COUNT(*) FROM step${i + 1}) AS step${i + 1}_count`);
+    const countSelects = steps.map((_: unknown, i: number) => `(SELECT COUNT(*) FROM step${i + 1}) AS step${i + 1}_count`);
     const conversionSelects: string[] = [];
     for (let i = 1; i < steps.length; i++) {
       conversionSelects.push(
@@ -164,15 +171,26 @@ export default async function funnelRoutes(fastify: FastifyInstance) {
       `ROUND((SELECT COUNT(*) FROM step${steps.length})::numeric / NULLIF((SELECT COUNT(*) FROM step1), 0) * 100, 1) AS overall_conversion_pct`
     );
 
-    const sql = `WITH ${ctes.join(',\n')} SELECT ${[...countSelects, ...conversionSelects].join(', ')}`;
+    // Compute average time between consecutive steps
+    const avgTimeSelects: string[] = [];
+    for (let i = 1; i < steps.length; i++) {
+      avgTimeSelects.push(
+        `(SELECT ROUND(AVG(EXTRACT(EPOCH FROM (s${i + 1}.step_time - s${i}.step_time)) * 1000)) FROM step${i} s${i} JOIN step${i + 1} s${i + 1} ON s${i}.session_id = s${i + 1}.session_id) AS step${i + 1}_avg_time_ms`
+      );
+    }
+
+    const allSelects = [...countSelects, ...conversionSelects, ...avgTimeSelects];
+    const sql = `WITH ${ctes.join(',\n')} SELECT ${allSelects.join(', ')}`;
     const result = await query(sql, params);
 
     return {
       funnel_id: fid,
+      funnel_name: funnelName,
       steps: steps.map((s: Record<string, unknown>, i: number) => ({
         position: s.position,
         name: s.name,
         count: parseInt(result.rows[0][`step${i + 1}_count`], 10),
+        avg_time_ms: i === 0 ? null : (result.rows[0][`step${i + 1}_avg_time_ms`] != null ? Number(result.rows[0][`step${i + 1}_avg_time_ms`]) : null),
       })),
       conversions: result.rows[0],
     };

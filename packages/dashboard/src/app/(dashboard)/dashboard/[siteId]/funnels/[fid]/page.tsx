@@ -3,19 +3,29 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { StatsCard } from "@/components/dashboard/stats-card";
-import { FunnelChart } from "@/components/charts/funnel-chart";
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from "recharts";
 import { api } from "@/lib/api";
-import { formatPercent } from "@/lib/utils";
+import { formatPercent, formatDurationShort } from "@/lib/utils";
 
 interface FunnelStep {
   position: number;
   name: string;
   count: number;
+  avg_time_ms: number | null;
 }
 
 interface FunnelData {
   funnel_id: string;
+  funnel_name: string;
   steps: FunnelStep[];
   conversions: Record<string, string>;
 }
@@ -40,38 +50,101 @@ export default function FunnelDetailPage() {
   const converted = steps.length > 0 ? steps[steps.length - 1].count : 0;
   const overallRate = Number(data.conversions.overall_conversion_pct) || 0;
 
-  // Map to the shape FunnelChart expects
-  const chartSteps = steps.map((s, i) => ({
+  // Build chart data: each step has entered and completed counts
+  const chartData = steps.map((s, i) => ({
     name: s.name,
-    visitors: s.count,
-    dropoff: i > 0 && steps[i - 1].count > 0
-      ? ((steps[i - 1].count - s.count) / steps[i - 1].count) * 100
-      : 0,
+    entered: s.count,
+    completed: i < steps.length - 1 ? steps[i + 1].count : s.count,
   }));
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Funnel Analysis</h1>
-        <p className="text-muted-foreground mt-1">Conversion funnel visualisation and analysis</p>
+      {/* Header */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">{data.funnel_name}</h1>
+        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+          <span>Started: <span className="font-medium text-foreground">{entered.toLocaleString()}</span></span>
+          <span>Completed: <span className="font-medium text-foreground">{converted.toLocaleString()}</span></span>
+          <span className="font-medium text-green-500">{formatPercent(overallRate)} conversion</span>
+        </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatsCard title="Total Entered" value={entered.toLocaleString()} />
-        <StatsCard title="Converted" value={converted.toLocaleString()} />
-        <StatsCard title="Conversion Rate" value={formatPercent(overallRate)} />
-      </div>
-
-      {chartSteps.length > 0 && (
+      {/* Grouped bar chart */}
+      {chartData.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Conversion Funnel</CardTitle>
+            <CardTitle className="text-base">Step Performance</CardTitle>
           </CardHeader>
           <CardContent>
-            <FunnelChart steps={chartSteps} />
+            <ResponsiveContainer width="100%" height={350}>
+              <BarChart data={chartData} margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <XAxis
+                  dataKey="name"
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--card))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "8px",
+                    fontSize: "12px",
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="entered" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Entered" />
+                <Bar dataKey="completed" fill="#22c55e" radius={[4, 4, 0, 0]} name="Completed" />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       )}
+
+      {/* Per-step detail cards */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {steps.map((step, i) => {
+          const stepEntered = step.count;
+          const stepCompleted = i < steps.length - 1 ? steps[i + 1].count : step.count;
+          const dropped = stepEntered - stepCompleted;
+          const conv = stepEntered > 0 ? (stepCompleted / stepEntered) * 100 : 0;
+          const avgTimeSec = step.avg_time_ms != null ? Math.round(step.avg_time_ms / 1000) : null;
+
+          return (
+            <Card key={step.position}>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium">{step.name}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Entered</span>
+                  <span className="font-medium">{stepEntered.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Dropped</span>
+                  <span className="font-medium text-red-500">{dropped.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Conv.</span>
+                  <span className="font-medium">{formatPercent(conv)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Avg time</span>
+                  <span className="font-medium">
+                    {avgTimeSec != null ? formatDurationShort(avgTimeSec) : "-"}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
