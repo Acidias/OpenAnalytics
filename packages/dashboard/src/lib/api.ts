@@ -79,16 +79,22 @@ export const api = {
       fetchAPI(`/api/sites/${siteId}/funnels/${fid}`),
     create: (siteId: string, data: Record<string, unknown>) =>
       fetchAPI(`/api/sites/${siteId}/funnels`, { method: "POST", body: JSON.stringify(data) }),
+    delete: (siteId: string, fid: string) =>
+      fetchAPI(`/api/sites/${siteId}/funnels/${fid}`, { method: "DELETE" }),
   },
   goals: {
     list: (siteId: string) =>
       fetchAPI(`/api/sites/${siteId}/goals`),
     create: (siteId: string, data: Record<string, unknown>) =>
       fetchAPI(`/api/sites/${siteId}/goals`, { method: "POST", body: JSON.stringify(data) }),
+    delete: (siteId: string, gid: string) =>
+      fetchAPI(`/api/sites/${siteId}/goals/${gid}`, { method: "DELETE" }),
   },
   rules: {
     create: (siteId: string, data: Record<string, unknown>) =>
       fetchAPI(`/api/sites/${siteId}/rules`, { method: "POST", body: JSON.stringify(data) }),
+    delete: (siteId: string, rid: string) =>
+      fetchAPI(`/api/sites/${siteId}/rules/${rid}`, { method: "DELETE" }),
   },
   ai: {
     suggest: (siteId: string, data: { description?: string; crawl?: boolean }) =>

@@ -5,9 +5,19 @@ import { authMiddleware, verifySiteAccess } from '../middleware/auth';
 
 const ANTHROPIC_MODEL = 'claude-sonnet-4-20250514';
 
+const replacesSchema = {
+  type: 'object',
+  description: 'When action is "replace", identifies the existing item being replaced',
+  properties: {
+    id: { type: 'string', description: 'UUID of the existing item to replace' },
+    name: { type: 'string', description: 'Name of the existing item (for display)' },
+  },
+  required: ['id', 'name'],
+} as const;
+
 const suggestTool: Anthropic.Tool = {
   name: 'suggest_analytics_config',
-  description: 'Suggest funnels, goals, and auto-track rules based on the site analytics data and description.',
+  description: 'Suggest funnels, goals, and auto-track rules based on the site analytics data and description. Can suggest new items or replacements for existing ones.',
   input_schema: {
     type: 'object' as const,
     properties: {
@@ -17,7 +27,9 @@ const suggestTool: Anthropic.Tool = {
           type: 'object',
           properties: {
             id: { type: 'string', description: 'Unique ID, e.g. funnel_1' },
-            description: { type: 'string', description: 'Why this funnel is useful' },
+            description: { type: 'string', description: 'Why this funnel is useful, or what is improved when replacing' },
+            action: { type: 'string', enum: ['create', 'replace'], description: 'Whether to create new or replace existing' },
+            replaces: replacesSchema,
             data: {
               type: 'object',
               properties: {
@@ -52,7 +64,9 @@ const suggestTool: Anthropic.Tool = {
           type: 'object',
           properties: {
             id: { type: 'string', description: 'Unique ID, e.g. goal_1' },
-            description: { type: 'string', description: 'Why this goal is useful' },
+            description: { type: 'string', description: 'Why this goal is useful, or what is improved when replacing' },
+            action: { type: 'string', enum: ['create', 'replace'], description: 'Whether to create new or replace existing' },
+            replaces: replacesSchema,
             data: {
               type: 'object',
               properties: {
@@ -73,7 +87,9 @@ const suggestTool: Anthropic.Tool = {
           type: 'object',
           properties: {
             id: { type: 'string', description: 'Unique ID, e.g. rule_1' },
-            description: { type: 'string', description: 'Why this rule is useful' },
+            description: { type: 'string', description: 'Why this rule is useful, or what is improved when replacing' },
+            action: { type: 'string', enum: ['create', 'replace'], description: 'Whether to create new or replace existing' },
+            replaces: replacesSchema,
             data: {
               type: 'object',
               properties: {
@@ -139,23 +155,30 @@ async function gatherContext(siteId: string) {
        GROUP BY referrer ORDER BY sessions DESC LIMIT 10`,
       [siteId, thirtyDaysAgo, now]
     ),
-    // Existing funnels
+    // Existing funnels with full step details
     query(
-      `SELECT f.name, json_agg(fs.name ORDER BY fs.position) AS step_names
+      `SELECT f.id, f.name, f.description,
+              json_agg(json_build_object(
+                'position', fs.position,
+                'name', fs.name,
+                'match_type', fs.match_type,
+                'match_path', fs.match_path,
+                'match_event', fs.match_event
+              ) ORDER BY fs.position) AS steps
        FROM funnels f
        LEFT JOIN funnel_steps fs ON fs.funnel_id = f.id
        WHERE f.site_id = $1
-       GROUP BY f.id, f.name`,
+       GROUP BY f.id, f.name, f.description`,
       [siteId]
     ),
     // Existing goals
     query(
-      'SELECT name, match_type, match_path, match_event FROM goals WHERE site_id = $1',
+      'SELECT id, name, match_type, match_path, match_event FROM goals WHERE site_id = $1',
       [siteId]
     ),
     // Existing auto-track rules
     query(
-      'SELECT name, event, selector, trigger FROM auto_track_rules WHERE site_id = $1',
+      'SELECT id, name, event, selector, trigger, capture_text, capture_value FROM auto_track_rules WHERE site_id = $1',
       [siteId]
     ),
   ]);
@@ -262,7 +285,6 @@ Based on the site's actual data and context, suggest useful funnels, goals, and 
 
 Guidelines:
 - Only suggest things that make sense given the actual pages and events observed
-- Do not duplicate any existing configuration
 - Funnels need at least 2 steps, each step uses match_type "pageview" (with match_path) or "event" (with match_event)
 - Goals track a single conversion event - either a pageview of a specific path or a custom event
 - Auto-track rules use CSS selectors to automatically capture DOM interactions as events
@@ -270,6 +292,8 @@ Guidelines:
 - Keep names concise and descriptive
 - Provide a brief, helpful description for each suggestion explaining why it is useful
 - If there is not enough data to make good suggestions, return empty arrays rather than guessing
+- You may suggest REPLACEMENTS for existing items when a better version is possible (e.g. a more granular funnel). Set action to "replace" and provide the replaces field with the existing item's id and name. When replacing, explain in the description what is being improved.
+- Do not suggest items identical to existing ones. Only suggest replacements when meaningfully different.
 
 Site data from the last 30 days:
 
@@ -285,14 +309,19 @@ ${context.customEvents.map((e: Record<string, unknown>) => `  ${e.event} - ${e.o
 Top referrers:
 ${context.referrers.map((r: Record<string, unknown>) => `  ${r.referrer} - ${r.sessions} sessions`).join('\n') || '  (no referrer data)'}
 
-Existing funnels (do not duplicate):
-${context.existingFunnels.map((f: Record<string, unknown>) => `  ${f.name}: ${f.step_names}`).join('\n') || '  (none)'}
+Existing funnels (can be replaced with action "replace" and replaces.id set to the funnel id):
+${context.existingFunnels.map((f: Record<string, unknown>) => {
+    const steps = (f.steps as Array<Record<string, unknown>>).map(
+      (s) => `    Step ${s.position}: ${s.name} (${s.match_type}: ${s.match_path || s.match_event || 'n/a'})`
+    ).join('\n');
+    return `  [id: ${f.id}] ${f.name}${f.description ? ` - ${f.description}` : ''}\n${steps}`;
+  }).join('\n') || '  (none)'}
 
-Existing goals (do not duplicate):
-${context.existingGoals.map((g: Record<string, unknown>) => `  ${g.name} (${g.match_type}: ${g.match_path || g.match_event})`).join('\n') || '  (none)'}
+Existing goals (can be replaced with action "replace" and replaces.id set to the goal id):
+${context.existingGoals.map((g: Record<string, unknown>) => `  [id: ${g.id}] ${g.name} (${g.match_type}: ${g.match_path || g.match_event})`).join('\n') || '  (none)'}
 
-Existing auto-track rules (do not duplicate):
-${context.existingRules.map((r: Record<string, unknown>) => `  ${r.name} - ${r.selector} on ${r.trigger}`).join('\n') || '  (none)'}`;
+Existing auto-track rules (can be replaced with action "replace" and replaces.id set to the rule id):
+${context.existingRules.map((r: Record<string, unknown>) => `  [id: ${r.id}] ${r.name} - event: ${r.event}, selector: ${r.selector}, trigger: ${r.trigger}, capture_text: ${r.capture_text}, capture_value: ${r.capture_value}`).join('\n') || '  (none)'}`;
 
   if (crawlData) {
     prompt += `\n\nHomepage structure:\n${crawlData}`;

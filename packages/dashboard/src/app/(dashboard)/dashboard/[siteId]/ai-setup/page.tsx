@@ -28,6 +28,7 @@ import {
   ArrowRight,
   RotateCcw,
   ExternalLink,
+  RefreshCw,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -38,6 +39,8 @@ interface AISuggestion<T = unknown> {
   id: string;
   description: string;
   data: T;
+  action?: "create" | "replace";
+  replaces?: { id: string; name: string };
 }
 
 interface AISuggestResponse {
@@ -87,6 +90,8 @@ interface FlatSuggestion {
   type: SuggestionType;
   suggestion: AISuggestion;
   editedData: FunnelData | GoalData | RuleData;
+  action: "create" | "replace";
+  replaces?: { id: string; name: string };
 }
 
 type Phase = "describe" | "review" | "done";
@@ -110,13 +115,13 @@ const typeConfig: Record<SuggestionType, { label: string; icon: typeof Layers; c
 function flattenSuggestions(res: AISuggestResponse): FlatSuggestion[] {
   const flat: FlatSuggestion[] = [];
   for (const s of res.funnels as AISuggestion<FunnelData>[]) {
-    flat.push({ type: "funnel", suggestion: s, editedData: structuredClone(s.data) });
+    flat.push({ type: "funnel", suggestion: s, editedData: structuredClone(s.data), action: s.action || "create", replaces: s.replaces });
   }
   for (const s of res.goals as AISuggestion<GoalData>[]) {
-    flat.push({ type: "goal", suggestion: s, editedData: structuredClone(s.data) });
+    flat.push({ type: "goal", suggestion: s, editedData: structuredClone(s.data), action: s.action || "create", replaces: s.replaces });
   }
   for (const s of res.rules as AISuggestion<RuleData>[]) {
-    flat.push({ type: "rule", suggestion: s, editedData: structuredClone(s.data) });
+    flat.push({ type: "rule", suggestion: s, editedData: structuredClone(s.data), action: s.action || "create", replaces: s.replaces });
   }
   return flat;
 }
@@ -216,20 +221,32 @@ export default function AISetupPage() {
     setAccepting(true);
     setError(null);
     try {
+      const sid = siteId as string;
       const data = current.editedData as unknown as Record<string, unknown>;
+
+      // Delete existing item first if this is a replacement
+      if (current.action === "replace" && current.replaces) {
+        const rid = current.replaces.id;
+        if (current.type === "funnel") await api.funnels.delete(sid, rid);
+        else if (current.type === "goal") await api.goals.delete(sid, rid);
+        else await api.rules.delete(sid, rid);
+      }
+
+      // Create the new item
       if (current.type === "funnel") {
-        await api.funnels.create(siteId as string, data);
+        await api.funnels.create(sid, data);
         setResults((r) => ({ ...r, funnels: r.funnels + 1 }));
       } else if (current.type === "goal") {
-        await api.goals.create(siteId as string, data);
+        await api.goals.create(sid, data);
         setResults((r) => ({ ...r, goals: r.goals + 1 }));
       } else {
-        await api.rules.create(siteId as string, data);
+        await api.rules.create(sid, data);
         setResults((r) => ({ ...r, rules: r.rules + 1 }));
       }
       advance();
     } catch {
-      setError(`Failed to add ${current.type} "${(current.editedData as { name: string }).name}". Please try again.`);
+      const verb = current.action === "replace" ? "replace" : "add";
+      setError(`Failed to ${verb} ${current.type} "${(current.editedData as { name: string }).name}". Please try again.`);
     } finally {
       setAccepting(false);
     }
@@ -334,6 +351,12 @@ export default function AISetupPage() {
                     </>
                   );
                 })()}
+                {current.action === "replace" && (
+                  <Badge variant="outline" className="text-amber-600 border-amber-300">
+                    <RefreshCw className="mr-1 h-3 w-3" />
+                    Replaces: {current.replaces?.name}
+                  </Badge>
+                )}
               </div>
               <CardTitle className="text-xl mt-2">
                 {(current.editedData as { name: string }).name}
@@ -379,19 +402,19 @@ export default function AISetupPage() {
                   {accepting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Adding...
+                      {current.action === "replace" ? "Replacing..." : "Adding..."}
                     </>
                   ) : (
                     <>
                       {isLast ? (
                         <>
                           <Check className="mr-2 h-4 w-4" />
-                          Accept & Finish
+                          {current.action === "replace" ? "Replace & Finish" : "Accept & Finish"}
                         </>
                       ) : (
                         <>
                           <ArrowRight className="mr-2 h-4 w-4" />
-                          Accept & Next
+                          {current.action === "replace" ? "Replace & Next" : "Accept & Next"}
                         </>
                       )}
                     </>
