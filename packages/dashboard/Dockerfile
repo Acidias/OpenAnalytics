@@ -12,7 +12,9 @@ COPY . .
 
 # Build-time env vars (overridable via docker-compose)
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
+ARG NEXT_PUBLIC_TRACKER_URL=
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_TRACKER_URL=$NEXT_PUBLIC_TRACKER_URL
 
 # Ensure public/ exists even if the project has no static assets yet
 RUN mkdir -p public

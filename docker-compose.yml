@@ -35,7 +35,7 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-changeme}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      CORS_ORIGIN: http://localhost:${DASHBOARD_PORT:-3100}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:${DASHBOARD_PORT:-3100}}
       PORT: ${API_PORT:-3101}
       HOST: 0.0.0.0
     ports:
@@ -53,10 +53,12 @@ services:
       context: ./packages/dashboard
       args:
         NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
+        NEXT_PUBLIC_TRACKER_URL: ${TRACKER_URL:-}
     environment:
       HOSTNAME: 0.0.0.0
       PORT: ${DASHBOARD_PORT:-3100}
       NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
+      NEXT_PUBLIC_TRACKER_URL: ${TRACKER_URL:-}
     ports:
       - "${DASHBOARD_PORT:-3100}:${DASHBOARD_PORT:-3100}"
     depends_on:

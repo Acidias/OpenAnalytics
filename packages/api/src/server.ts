@@ -42,9 +42,10 @@ async function main() {
     trustProxy: true,
   });
 
-  // Plugins
+  // Plugins - CORS_ORIGIN supports comma-separated origins (e.g. "http://localhost:3100,https://clawpost.dev")
+  const corsOrigin = process.env.CORS_ORIGIN;
   await fastify.register(cors, {
-    origin: process.env.CORS_ORIGIN || true,
+    origin: corsOrigin ? corsOrigin.split(',').map((o) => o.trim()) : true,
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   });
   await fastify.register(websocket);
