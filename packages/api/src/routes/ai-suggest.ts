@@ -386,6 +386,18 @@ export default async function aiSuggestRoutes(fastify: FastifyInstance) {
       if (err instanceof Anthropic.RateLimitError) {
         return reply.status(429).send({ error: 'AI rate limit reached. Please try again in a moment.' });
       }
+      if (err instanceof Anthropic.BadRequestError) {
+        fastify.log.error(err, 'AI suggest failed - bad request from Anthropic');
+        const msg = (err.error as { error?: { message?: string } })?.error?.message;
+        return reply.status(502).send({
+          error: msg && msg.includes('credit balance')
+            ? 'Anthropic API credit balance is too low. Please top up your credits.'
+            : 'AI request failed. Please check your Anthropic API key and account.',
+        });
+      }
+      if (err instanceof Anthropic.AuthenticationError) {
+        return reply.status(502).send({ error: 'Anthropic API key is invalid. Please check your ANTHROPIC_API_KEY.' });
+      }
       fastify.log.error(err, 'AI suggest failed');
       return reply.status(500).send({ error: 'Failed to generate suggestions.' });
     }

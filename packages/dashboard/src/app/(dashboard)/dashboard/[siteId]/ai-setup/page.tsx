@@ -175,7 +175,9 @@ export default function AISetupPage() {
               ? "Not enough context to generate suggestions. Add a site description or collect some analytics data first."
               : err.message.includes("429")
                 ? "AI rate limit reached. Please try again in a moment."
-                : "Failed to generate suggestions. Please try again."
+                : err.message.includes("502")
+                  ? "Anthropic API error - check your API key and credit balance."
+                  : "Failed to generate suggestions. Please try again."
           : "An unexpected error occurred."
       );
     } finally {
