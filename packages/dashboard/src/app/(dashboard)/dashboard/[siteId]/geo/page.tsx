@@ -3,15 +3,26 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { BarChart } from "@/components/charts/bar-chart";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
 import { api } from "@/lib/api";
+import { formatNumber } from "@/lib/utils";
+import { Globe, Users } from "lucide-react";
 
 interface GeoRow {
   country: string;
   visitors: number;
   pageviews: number;
+}
+
+function countryFlag(code: string): string {
+  if (!code || code.length !== 2) return "";
+  const offset = 127397;
+  return String.fromCodePoint(
+    ...code
+      .toUpperCase()
+      .split("")
+      .map((c) => c.charCodeAt(0) + offset)
+  );
 }
 
 export default function GeoPage() {
@@ -28,8 +39,33 @@ export default function GeoPage() {
       .catch(() => setError("Failed to load geography data"));
   }, [siteId, period]);
 
-  if (error) return <p className="text-destructive">{error}</p>;
-  if (!geo) return <p className="text-muted-foreground">Loading...</p>;
+  if (error) return <p className="text-destructive p-8">{error}</p>;
+
+  if (!geo) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="h-8 w-32 rounded bg-muted animate-pulse" />
+          <div className="h-9 w-40 rounded bg-muted animate-pulse" />
+        </div>
+        <div className="grid gap-3 md:grid-cols-2">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div
+              key={i}
+              className="h-20 rounded-lg border bg-card animate-pulse"
+            />
+          ))}
+        </div>
+        <div className="rounded-lg border bg-card animate-pulse">
+          <div className="p-6 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-10 rounded bg-muted animate-pulse" />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Aggregate by country (API may return country+region+city rows)
   const countryMap = new Map<string, { visitors: number; pageviews: number }>();
@@ -49,49 +85,86 @@ export default function GeoPage() {
     .map(([country, agg]) => ({ country, ...agg }))
     .sort((a, b) => b.visitors - a.visitors);
 
+  const totalCountries = countries.length;
   const totalVisitors = countries.reduce((sum, c) => sum + c.visitors, 0);
+  const maxVisitors = Math.max(...countries.map((c) => c.visitors), 1);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Geography</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Geography</h1>
         <DateRangePicker value={period} onChange={setPeriod} />
       </div>
 
-      {countries.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Visitors by Country</CardTitle></CardHeader>
-          <CardContent>
-            <BarChart
-              data={countries.slice(0, 8)}
-              xKey="country"
-              bars={[{ key: "visitors", color: "hsl(var(--primary))", name: "Visitors" }]}
-              height={350}
-            />
-          </CardContent>
-        </Card>
-      )}
+      {/* Stats */}
+      <div className="grid gap-3 md:grid-cols-2">
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Countries
+            </span>
+            <Globe className="h-4 w-4 text-muted-foreground/60" />
+          </div>
+          <p className="text-2xl font-bold tracking-tight">{formatNumber(totalCountries)}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Total Visitors
+            </span>
+            <Users className="h-4 w-4 text-muted-foreground/60" />
+          </div>
+          <p className="text-2xl font-bold tracking-tight">{formatNumber(totalVisitors)}</p>
+        </div>
+      </div>
 
+      {/* Countries List */}
       <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Country</TableHead>
-                <TableHead className="text-right">Visitors</TableHead>
-                <TableHead className="text-right">%</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {countries.map((c) => (
-                <TableRow key={c.country}>
-                  <TableCell className="font-medium">{c.country}</TableCell>
-                  <TableCell className="text-right">{c.visitors.toLocaleString()}</TableCell>
-                  <TableCell className="text-right">{totalVisitors > 0 ? ((c.visitors / totalVisitors) * 100).toFixed(1) : "0.0"}%</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">All Countries</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-2">
+            {countries.length === 0 && (
+              <p className="text-sm text-muted-foreground py-4 text-center">
+                No country data yet
+              </p>
+            )}
+            {countries.map((c) => {
+              const pct = maxVisitors > 0 ? (c.visitors / maxVisitors) * 100 : 0;
+              const percentage = totalVisitors > 0
+                ? ((c.visitors / totalVisitors) * 100).toFixed(1)
+                : "0.0";
+              return (
+                <div key={c.country} className="group relative">
+                  <div
+                    className="absolute inset-0 rounded bg-emerald-500/8 transition-all"
+                    style={{ width: `${pct}%` }}
+                  />
+                  <div className="relative flex items-center justify-between py-1.5 px-2">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base leading-none">
+                        {countryFlag(c.country)}
+                      </span>
+                      <span className="text-sm">{c.country}</span>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="text-sm tabular-nums text-muted-foreground font-medium">
+                        {c.visitors.toLocaleString()}
+                      </span>
+                      <span className="text-xs tabular-nums text-muted-foreground/70 w-12 text-right">
+                        {percentage}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
     </div>
