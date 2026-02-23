@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   Card,
   CardContent,
@@ -27,19 +27,27 @@ interface Site {
 
 export default function SiteSettingsPage() {
   const { siteId } = useParams();
+  const router = useRouter();
   const [site, setSite] = useState<Site | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [siteName, setSiteName] = useState("");
   const [domain, setDomain] = useState("");
   const [copied, setCopied] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    api.sites.get(siteId as string).then((data) => {
-      const s = (data as { site: Site }).site;
-      setSite(s);
-      setSiteName(s.name || "");
-      setDomain(s.domain);
-    });
+    api.sites
+      .get(siteId as string)
+      .then((data) => {
+        const s = (data as { site: Site }).site;
+        setSite(s);
+        setSiteName(s.name || "");
+        setDomain(s.domain);
+      })
+      .catch(() => {
+        setError("Failed to load site settings");
+      });
   }, [siteId]);
 
   const scriptTag = site ? getScriptTag(site.public_id) : "";
@@ -58,6 +66,23 @@ export default function SiteSettingsPage() {
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+
+  const handleDelete = async () => {
+    if (!window.confirm("Are you sure? This will permanently delete the site and all its analytics data.")) {
+      return;
+    }
+    setDeleting(true);
+    try {
+      await api.sites.delete(siteId as string);
+      router.push("/settings");
+    } catch {
+      setDeleting(false);
+    }
+  };
+
+  if (error) {
+    return <p className="text-destructive">{error}</p>;
+  }
 
   if (!site) {
     return <p className="text-muted-foreground">Loading...</p>;
@@ -154,7 +179,13 @@ export default function SiteSettingsPage() {
                 Permanently delete this site and all its data
               </p>
             </div>
-            <Button variant="destructive">Delete Site</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete Site"}
+            </Button>
           </div>
         </CardContent>
       </Card>

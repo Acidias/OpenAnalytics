@@ -28,6 +28,16 @@ export default async function sitesRoutes(fastify: FastifyInstance) {
     return { sites: result.rows };
   });
 
+  // Get single site
+  fastify.get<{ Params: { id: string } }>('/api/sites/:id', async (request, reply) => {
+    const result = await query(
+      'SELECT id, domain, name, public_id, settings, created_at FROM sites WHERE id = $1 AND user_id = $2',
+      [request.params.id, request.user!.id]
+    );
+    if (result.rows.length === 0) return reply.status(404).send({ error: 'Site not found' });
+    return { site: result.rows[0] };
+  });
+
   // Create site
   fastify.post('/api/sites', async (request, reply) => {
     const parsed = createSiteSchema.safeParse(request.body);
