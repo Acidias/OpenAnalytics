@@ -1,26 +1,75 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Check, Copy } from "lucide-react";
+import { api } from "@/lib/api";
+import { getScriptTag } from "@/lib/script-tag";
+
+interface Site {
+  id: string;
+  domain: string;
+  name: string | null;
+  public_id: string;
+}
 
 export default function SiteSettingsPage() {
   const { siteId } = useParams();
-  const [siteName, setSiteName] = useState("Acme Corp");
-  const [domain, setDomain] = useState("acme.com");
+  const [site, setSite] = useState<Site | null>(null);
+  const [siteName, setSiteName] = useState("");
+  const [domain, setDomain] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const scriptTag = `<script defer data-site="${siteId}" src="https://cdn.openanalytics.dev/oa.js"></script>`;
+  useEffect(() => {
+    api.sites.get(siteId as string).then((data) => {
+      const s = (data as { site: Site }).site;
+      setSite(s);
+      setSiteName(s.name || "");
+      setDomain(s.domain);
+    });
+  }, [siteId]);
+
+  const scriptTag = site ? getScriptTag(site.public_id) : "";
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await api.sites.update(siteId as string, { name: siteName, domain });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(scriptTag);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  if (!site) {
+    return <p className="text-muted-foreground">Loading...</p>;
+  }
 
   return (
     <div className="space-y-8 max-w-2xl">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Site Settings</h1>
-        <p className="text-muted-foreground mt-1">Manage your site configuration</p>
+        <p className="text-muted-foreground mt-1">
+          Manage your site configuration
+        </p>
       </div>
 
       <Card>
@@ -30,25 +79,47 @@ export default function SiteSettingsPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="name">Site Name</Label>
-            <Input id="name" value={siteName} onChange={(e) => setSiteName(e.target.value)} />
+            <Input
+              id="name"
+              value={siteName}
+              onChange={(e) => setSiteName(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="domain">Domain</Label>
-            <Input id="domain" value={domain} onChange={(e) => setDomain(e.target.value)} />
+            <Input
+              id="domain"
+              value={domain}
+              onChange={(e) => setDomain(e.target.value)}
+            />
           </div>
-          <Button>Save Changes</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Tracking Script</CardTitle>
-          <CardDescription>Add this script to your website&apos;s &lt;head&gt; tag</CardDescription>
+          <CardDescription>
+            Add this script to your website&apos;s &lt;head&gt; tag
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="p-4 rounded-md bg-muted font-mono text-sm break-all">{scriptTag}</div>
-          <Button variant="outline" className="mt-3" onClick={() => navigator.clipboard.writeText(scriptTag)}>
-            Copy to Clipboard
+          <div className="p-4 rounded-md bg-muted font-mono text-sm break-all">
+            {scriptTag}
+          </div>
+          <Button variant="outline" className="mt-3" onClick={handleCopy}>
+            {copied ? (
+              <>
+                <Check className="mr-2 h-4 w-4" /> Copied!
+              </>
+            ) : (
+              <>
+                <Copy className="mr-2 h-4 w-4" /> Copy to Clipboard
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -56,7 +127,9 @@ export default function SiteSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Auto-Track Rules</CardTitle>
-          <CardDescription>Automatically track clicks on elements matching CSS selectors</CardDescription>
+          <CardDescription>
+            Automatically track clicks on elements matching CSS selectors
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Link href={`/dashboard/${siteId}/settings/tracking`}>
@@ -69,13 +142,17 @@ export default function SiteSettingsPage() {
 
       <Card className="border-destructive/50">
         <CardHeader>
-          <CardTitle className="text-base text-destructive">Danger Zone</CardTitle>
+          <CardTitle className="text-base text-destructive">
+            Danger Zone
+          </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <p className="font-medium">Delete Site</p>
-              <p className="text-sm text-muted-foreground">Permanently delete this site and all its data</p>
+              <p className="text-sm text-muted-foreground">
+                Permanently delete this site and all its data
+              </p>
             </div>
             <Button variant="destructive">Delete Site</Button>
           </div>
