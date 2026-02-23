@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { getWebSocketURL, api } from "@/lib/api";
-import { getToken } from "@/lib/auth";
 import { Zap } from "lucide-react";
 
 interface LiveEvent {
@@ -78,8 +77,7 @@ export default function LivePage() {
 
   // WebSocket for real-time streaming
   useEffect(() => {
-    const token = getToken();
-    const url = getWebSocketURL(`/api/sites/${siteId}/live${token ? `?token=${token}` : ""}`);
+    const url = getWebSocketURL(`/api/sites/${siteId}/live`);
     const ws = new WebSocket(url);
     wsRef.current = ws;
 
