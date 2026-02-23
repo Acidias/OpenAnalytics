@@ -199,99 +199,230 @@ async function gatherContext(siteId: string) {
   };
 }
 
-async function crawlHomepage(domain: string): Promise<string | null> {
-  const url = `https://${domain}`;
+// ---------------------------------------------------------------------------
+// DOM crawl helpers
+// ---------------------------------------------------------------------------
+
+function extractAttributes(attrString: string): Record<string, string> {
+  const attrs: Record<string, string> = {};
+  const regex = /([\w-]+)=["']([^"']*?)["']/g;
+  let m;
+  while ((m = regex.exec(attrString)) !== null) {
+    attrs[m[1]] = m[2];
+  }
+  return attrs;
+}
+
+function buildSelector(tag: string, attrs: Record<string, string>): string {
+  if (attrs.id) return `#${attrs.id}`;
+  let sel = tag;
+  if (attrs.class) {
+    // Filter out auto-generated classes (CSS modules, styled-components, etc.)
+    const classes = attrs.class.trim().split(/\s+/).filter(c =>
+      c.length > 0
+      && !/^(css-|_|svelte-|jsx-|sc-|tw-)/i.test(c)
+      && !/^[a-f0-9]{6,}$/i.test(c)
+    );
+    if (classes.length > 0) {
+      sel += '.' + classes.slice(0, 3).join('.');
+    }
+  }
+  // Add data attributes for specificity
+  for (const [key, val] of Object.entries(attrs)) {
+    if (key.startsWith('data-') && !key.startsWith('data-reactid') && !key.startsWith('data-v-') && val) {
+      sel += `[${key}="${val}"]`;
+      break;
+    }
+  }
+  if (attrs.type && ['submit', 'button'].includes(attrs.type)) {
+    sel += `[type="${attrs.type}"]`;
+  }
+  if (attrs.role === 'button') {
+    sel += '[role="button"]';
+  }
+  return sel;
+}
+
+function stripHtmlTags(html: string): string {
+  return html.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+}
+
+async function crawlPage(pageUrl: string, path: string): Promise<string | null> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
+  const timer = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const res = await fetch(url, {
+    const res = await fetch(pageUrl, {
       signal: controller.signal,
       headers: { 'User-Agent': 'OpenAnalytics-Bot/1.0' },
     });
-    clearTimeout(timeout);
+    clearTimeout(timer);
     if (!res.ok) return null;
     const html = await res.text();
 
-    // Extract useful structure with simple regex
     const parts: string[] = [];
+    parts.push(`=== Page: ${path} ===`);
 
+    // Title
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
     if (titleMatch) parts.push(`Title: ${titleMatch[1].trim()}`);
 
+    // Meta description
     const metaDesc = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i);
     if (metaDesc) parts.push(`Description: ${metaDesc[1].trim()}`);
 
-    // Internal links
-    const linkRegex = /<a[^>]+href=["']\/([^"'#]*?)["'][^>]*>/gi;
-    const links = new Set<string>();
-    let linkMatch;
-    while ((linkMatch = linkRegex.exec(html)) !== null && links.size < 20) {
-      const path = '/' + linkMatch[1].split('?')[0];
-      if (path.length > 1) links.add(path);
-    }
-    if (links.size > 0) parts.push(`Internal links: ${[...links].join(', ')}`);
-
-    // Headings
-    const headingRegex = /<h[1-3][^>]*>([^<]+)<\/h[1-3]>/gi;
-    const headings: string[] = [];
-    let headingMatch;
-    while ((headingMatch = headingRegex.exec(html)) !== null && headings.length < 10) {
-      headings.push(headingMatch[1].trim());
-    }
-    if (headings.length > 0) parts.push(`Headings: ${headings.join(', ')}`);
-
-    // Forms
-    const formRegex = /<form[^>]*(?:action=["']([^"']+)["'])?[^>]*>/gi;
-    const forms: string[] = [];
-    let formMatch;
-    while ((formMatch = formRegex.exec(html)) !== null && forms.length < 5) {
-      forms.push(formMatch[1] || '(inline form)');
-    }
-    if (forms.length > 0) parts.push(`Forms: ${forms.join(', ')}`);
-
     // Buttons
-    const buttonRegex = /<button[^>]*>([^<]+)<\/button>/gi;
     const buttons: string[] = [];
-    let buttonMatch;
-    while ((buttonMatch = buttonRegex.exec(html)) !== null && buttons.length < 10) {
-      buttons.push(buttonMatch[1].trim());
+    const buttonRegex = /<button([^>]*)>([\s\S]*?)<\/button>/gi;
+    let match;
+    while ((match = buttonRegex.exec(html)) !== null && buttons.length < 15) {
+      const attrs = extractAttributes(match[1]);
+      const text = stripHtmlTags(match[2]).slice(0, 80);
+      if (!text || text.length < 2) continue;
+      const selector = buildSelector('button', attrs);
+      buttons.push(`  - [button] "${text}" | selector: ${selector}`);
     }
-    if (buttons.length > 0) parts.push(`Buttons: ${buttons.join(', ')}`);
 
-    // Navigation
-    const navRegex = /<nav[^>]*>([\s\S]*?)<\/nav>/gi;
-    const navMatch = navRegex.exec(html);
-    if (navMatch) {
-      const navLinks: string[] = [];
-      const navLinkRegex = /<a[^>]+href=["']([^"']+)["'][^>]*>([^<]+)<\/a>/gi;
-      let nl;
-      while ((nl = navLinkRegex.exec(navMatch[1])) !== null && navLinks.length < 10) {
-        navLinks.push(`${nl[2].trim()} (${nl[1]})`);
+    // Input submit / button
+    const inputBtnRegex = /<input([^>]*type=["'](submit|button)["'][^>]*)\/?\s*>/gi;
+    while ((match = inputBtnRegex.exec(html)) !== null && buttons.length < 20) {
+      const attrs = extractAttributes(match[1]);
+      const text = attrs.value || 'Submit';
+      const selector = buildSelector('input', attrs);
+      buttons.push(`  - [input] "${text}" | selector: ${selector}`);
+    }
+
+    if (buttons.length > 0) {
+      parts.push('\nButtons:');
+      parts.push(...buttons);
+    }
+
+    // Forms with their inputs
+    const forms: string[] = [];
+    const formRegex = /<form([^>]*)>([\s\S]*?)<\/form>/gi;
+    while ((match = formRegex.exec(html)) !== null && forms.length < 5) {
+      const attrs = extractAttributes(match[1]);
+      const formHtml = match[2];
+      const selector = buildSelector('form', attrs);
+
+      const inputs: string[] = [];
+      const inputRegex = /<input([^>]*)>/gi;
+      let inputMatch;
+      while ((inputMatch = inputRegex.exec(formHtml)) !== null && inputs.length < 8) {
+        const inputAttrs = extractAttributes(inputMatch[1]);
+        const iType = inputAttrs.type || 'text';
+        if (['hidden', 'submit', 'button'].includes(iType)) continue;
+        const name = inputAttrs.name || inputAttrs.placeholder || iType;
+        inputs.push(`${name} (${iType})`);
       }
-      if (navLinks.length > 0) parts.push(`Navigation: ${navLinks.join(', ')}`);
+
+      const textareaRegex = /<textarea([^>]*)>/gi;
+      while ((inputMatch = textareaRegex.exec(formHtml)) !== null && inputs.length < 10) {
+        const taAttrs = extractAttributes(inputMatch[1]);
+        inputs.push(`${taAttrs.name || taAttrs.placeholder || 'text'} (textarea)`);
+      }
+
+      const selectRegex = /<select([^>]*)>/gi;
+      while ((inputMatch = selectRegex.exec(formHtml)) !== null && inputs.length < 10) {
+        const selAttrs = extractAttributes(inputMatch[1]);
+        inputs.push(`${selAttrs.name || 'select'} (select)`);
+      }
+
+      if (inputs.length === 0) continue;
+      forms.push(`  - selector: ${selector} | action: ${attrs.action || '(inline)'} | inputs: ${inputs.join(', ')}`);
+    }
+
+    if (forms.length > 0) {
+      parts.push('\nForms:');
+      parts.push(...forms);
+    }
+
+    // CTA links (links styled as buttons or with action-oriented classes)
+    const ctaLinks: string[] = [];
+    const ctaLinkRegex = /<a([^>]*)>([\s\S]*?)<\/a>/gi;
+    const seenHrefs = new Set<string>();
+    while ((match = ctaLinkRegex.exec(html)) !== null && ctaLinks.length < 10) {
+      const attrs = extractAttributes(match[1]);
+      const text = stripHtmlTags(match[2]).slice(0, 80);
+      const href = attrs.href;
+      if (!text || text.length < 2 || !href || href === '#' || href.startsWith('javascript:')) continue;
+      if (seenHrefs.has(href)) continue;
+      seenHrefs.add(href);
+
+      const isCTA = attrs.class && /btn|button|cta|action|primary|hero/i.test(attrs.class);
+      const isRoleButton = attrs.role === 'button';
+      if (!isCTA && !isRoleButton) continue;
+
+      const selector = buildSelector('a', attrs);
+      ctaLinks.push(`  - [link] "${text}" | selector: ${selector} | href: ${href}`);
+    }
+
+    if (ctaLinks.length > 0) {
+      parts.push('\nCTA Links:');
+      parts.push(...ctaLinks);
+    }
+
+    // Internal navigation links (for context)
+    const navLinks: string[] = [];
+    const allLinkRegex = /<a[^>]+href=["']\/([^"'#]*?)["'][^>]*>([^<]*)<\/a>/gi;
+    const seenPaths = new Set<string>();
+    while ((match = allLinkRegex.exec(html)) !== null && navLinks.length < 15) {
+      const linkPath = '/' + match[1].split('?')[0];
+      const linkText = match[2].trim();
+      if (linkPath.length <= 1 || seenPaths.has(linkPath)) continue;
+      seenPaths.add(linkPath);
+      if (linkText) {
+        navLinks.push(`  - ${linkText} -> ${linkPath}`);
+      }
+    }
+
+    if (navLinks.length > 0) {
+      parts.push('\nInternal links:');
+      parts.push(...navLinks);
     }
 
     return parts.join('\n');
   } catch {
-    clearTimeout(timeout);
+    clearTimeout(timer);
     return null;
   }
+}
+
+async function crawlSitePages(domain: string, topPaths: string[]): Promise<string | null> {
+  // Always include homepage, then top visited pages
+  const pathsToCheck = ['/', ...topPaths.filter(p => p !== '/')].slice(0, 5);
+
+  const results = await Promise.allSettled(
+    pathsToCheck.map(path => {
+      const fullUrl = `https://${domain}${path}`;
+      return crawlPage(fullUrl, path);
+    })
+  );
+
+  const pages = results
+    .map(r => r.status === 'fulfilled' ? r.value : null)
+    .filter((r): r is string => r !== null);
+
+  if (pages.length === 0) return null;
+  return pages.join('\n\n');
 }
 
 function buildSystemPrompt(context: Awaited<ReturnType<typeof gatherContext>>, crawlData: string | null, description?: string): string {
   let prompt = `You are an analytics setup assistant for a web analytics platform called OpenAnalytics.
 Based on the site's actual data and context, suggest useful funnels, goals, and auto-track rules.
 
-Guidelines:
-- Only suggest things that make sense given the actual pages and events observed
+CRITICAL DATA RULES:
+- For FUNNELS: each step MUST use either a page path from "Top pages" (match_type: "pageview") or an event name from "Custom events tracked" (match_type: "event"). NEVER invent, assume, or fabricate event names or page paths that do not appear in the data. If no custom events exist, build funnels using pageview steps only.
+- For GOALS: the match_path MUST come from "Top pages" or the match_event MUST come from "Custom events tracked". NEVER suggest goals for events that are not being tracked.
+- For AUTO-TRACK RULES: use the actual CSS selectors from the "Website page analysis" section below. These are real interactive elements on the website. For each rule, include a description explaining what the element does and why tracking it is valuable. Prefer id-based or data-attribute selectors over class-based ones.
+- If there is not enough data to make good suggestions, return empty arrays rather than guessing.
+
+General guidelines:
 - Funnels need at least 2 steps, each step uses match_type "pageview" (with match_path) or "event" (with match_event)
 - Goals track a single conversion event - either a pageview of a specific path or a custom event
-- Auto-track rules use CSS selectors to automatically capture DOM interactions as events
 - Use timeout_ms of 1800000 (30 minutes) for funnel steps unless a shorter window makes sense
 - Keep names concise and descriptive
-- Provide a brief, helpful description for each suggestion explaining why it is useful
-- If there is not enough data to make good suggestions, return empty arrays rather than guessing
+- Provide a brief, helpful description for each suggestion explaining why it is useful and what the user will learn from it
 - You may suggest REPLACEMENTS for existing items when a better version is possible (e.g. a more granular funnel). Set action to "replace" and provide the replaces field with the existing item's id and name. When replacing, explain in the description what is being improved.
 - Do not suggest items identical to existing ones. Only suggest replacements when meaningfully different.
 
@@ -324,7 +455,7 @@ Existing auto-track rules (can be replaced with action "replace" and replaces.id
 ${context.existingRules.map((r: Record<string, unknown>) => `  [id: ${r.id}] ${r.name} - event: ${r.event}, selector: ${r.selector}, trigger: ${r.trigger}, capture_text: ${r.capture_text}, capture_value: ${r.capture_value}`).join('\n') || '  (none)'}`;
 
   if (crawlData) {
-    prompt += `\n\nHomepage structure:\n${crawlData}`;
+    prompt += `\n\nWebsite page analysis (interactive elements with CSS selectors - use these for auto-track rules):\n${crawlData}`;
   }
 
   if (description) {
@@ -368,12 +499,13 @@ export default async function aiSuggestRoutes(fastify: FastifyInstance) {
     // Gather analytics context
     const context = await gatherContext(request.params.id);
 
-    // Optionally crawl the site homepage
+    // Optionally crawl the site's top pages
     let crawlData: string | null = null;
     if (shouldCrawl) {
       const siteResult = await query('SELECT domain FROM sites WHERE id = $1', [request.params.id]);
       if (siteResult.rows.length > 0) {
-        crawlData = await crawlHomepage(siteResult.rows[0].domain);
+        const topPaths = context.pages.map((p: Record<string, unknown>) => p.path as string);
+        crawlData = await crawlSitePages(siteResult.rows[0].domain, topPaths);
       }
     }
 
