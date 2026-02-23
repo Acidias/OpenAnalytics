@@ -14,6 +14,17 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Check, Copy } from "lucide-react";
 import { api } from "@/lib/api";
 import { getScriptTag } from "@/lib/script-tag";
@@ -68,9 +79,6 @@ export default function SiteSettingsPage() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm("Are you sure? This will permanently delete the site and all its analytics data.")) {
-      return;
-    }
     setDeleting(true);
     try {
       await api.sites.delete(siteId as string);
@@ -179,13 +187,31 @@ export default function SiteSettingsPage() {
                 Permanently delete this site and all its data
               </p>
             </div>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={deleting}
-            >
-              {deleting ? "Deleting..." : "Delete Site"}
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" disabled={deleting}>
+                  {deleting ? "Deleting..." : "Delete Site"}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Delete {site.name || site.domain}?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete the site and all its analytics
+                    data. This action cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    onClick={handleDelete}
+                  >
+                    Delete
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </CardContent>
       </Card>
