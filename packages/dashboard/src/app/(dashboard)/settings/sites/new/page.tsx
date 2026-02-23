@@ -313,6 +313,8 @@ interface WizardState {
   siteName: string;
   domain: string;
   publicId: string;
+  ingestionTokenPublicId: string;
+  ingestionTokenSecret: string;
   deploymentChoice: "local" | null;
   tunnelUrl: string;
 }
@@ -351,6 +353,8 @@ export default function NewSitePage() {
   const [siteName, setSiteName] = useState("");
   const [domain, setDomain] = useState("");
   const [publicId, setPublicId] = useState("");
+  const [ingestionTokenPublicId, setIngestionTokenPublicId] = useState("");
+  const [ingestionTokenSecret, setIngestionTokenSecret] = useState("");
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
 
@@ -377,6 +381,8 @@ export default function NewSitePage() {
       setSiteName(saved.siteName || "");
       setDomain(saved.domain || "");
       setPublicId(saved.publicId);
+      setIngestionTokenPublicId(saved.ingestionTokenPublicId || '');
+      setIngestionTokenSecret(saved.ingestionTokenSecret || '');
       setDeploymentChoice(saved.deploymentChoice ?? null);
       setTunnelUrl(saved.tunnelUrl || process.env.NEXT_PUBLIC_TRACKER_URL || "");
     }
@@ -385,9 +391,18 @@ export default function NewSitePage() {
   // Persist wizard state to sessionStorage whenever key values change
   const persistState = useCallback(() => {
     if (publicId) {
-      saveWizardState({ step, siteName, domain, publicId, deploymentChoice, tunnelUrl });
+      saveWizardState({
+        step,
+        siteName,
+        domain,
+        publicId,
+        ingestionTokenPublicId,
+        ingestionTokenSecret,
+        deploymentChoice,
+        tunnelUrl,
+      });
     }
-  }, [step, siteName, domain, publicId, deploymentChoice, tunnelUrl]);
+  }, [step, siteName, domain, publicId, ingestionTokenPublicId, ingestionTokenSecret, deploymentChoice, tunnelUrl]);
 
   useEffect(() => {
     persistState();
@@ -395,7 +410,7 @@ export default function NewSitePage() {
 
   const effectiveTrackerUrl = hosted ? getTrackerBaseUrl() : tunnelUrl;
   const scriptTag = publicId
-    ? `<script defer data-site="${publicId}" src="${effectiveTrackerUrl.replace(/\/$/, "")}/oa.js"></script>`
+    ? `<script defer data-site="${publicId}"${ingestionTokenPublicId && ingestionTokenSecret ? ` data-token-id="${ingestionTokenPublicId}" data-token="${ingestionTokenSecret}"` : ""} src="${effectiveTrackerUrl.replace(/\/$/, "")}/oa.js"></script>`
     : "";
 
   const detectedTunnelUrl = process.env.NEXT_PUBLIC_TRACKER_URL || "";
@@ -407,8 +422,10 @@ export default function NewSitePage() {
       const data = (await api.sites.create({
         domain,
         name: siteName || undefined,
-      })) as { site: { public_id: string } };
+      })) as { site: { public_id: string; settings?: { ingestion_token?: { public_id?: string; secret?: string } } } };
       setPublicId(data.site.public_id);
+      setIngestionTokenPublicId(data.site.settings?.ingestion_token?.public_id || '');
+      setIngestionTokenSecret(data.site.settings?.ingestion_token?.secret || '');
       setStep(2);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create site");
