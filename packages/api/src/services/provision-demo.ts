@@ -13,7 +13,7 @@ import { redis } from '../db/redis';
 
 const DEMO_DOMAIN = 'demo.example.com';
 const DEMO_SITE_NAME = 'Demo Site';
-const SESSION_COUNT = 500;
+const SESSION_COUNT = 1500;
 const DAYS = 30;
 const BATCH_SIZE = 100;
 
@@ -281,8 +281,8 @@ async function populateDemoData(siteId: string): Promise<void> {
       }
     }
 
-    // ~30% of sessions follow funnel paths
-    const funnelSessionCount = Math.floor(SESSION_COUNT * 0.3);
+    // ~40% of sessions follow funnel paths for richer funnel data
+    const funnelSessionCount = Math.floor(SESSION_COUNT * 0.4);
     const regularSessionCount = SESSION_COUNT - funnelSessionCount;
 
     // ── Funnel-aware sessions ──
@@ -294,42 +294,124 @@ async function populateDemoData(siteId: string): Promise<void> {
       // Pick a funnel path with drop-off
       const funnelType = pick(
         ['signup', 'onboarding', 'content', 'feature'] as const,
-        [35, 25, 20, 20]
+        [30, 30, 20, 20]
       );
-      const fullPath = funnelPaths[funnelType];
-
-      // Determine how far through the funnel this session gets (realistic drop-off)
-      const dropOffRates: Record<string, number[]> = {
-        signup: [1.0, 0.65, 0.40, 0.25],      // 100% -> 65% -> 40% -> complete event
-        onboarding: [1.0, 0.80, 0.55, 0.35],   // high initial, drops through steps
-        content: [1.0, 0.50, 0.20],             // blog -> blog -> signup
-        feature: [1.0, 0.60],                   // features -> docs
-      };
-      const rates = dropOffRates[funnelType];
-      let stepsCompleted = 1;
-      for (let i = 1; i < rates.length; i++) {
-        if (Math.random() < rates[i]) stepsCompleted = i + 1;
-        else break;
-      }
 
       let currentTime = sessionStart;
-      const pagesVisited = fullPath.slice(0, stepsCompleted);
 
-      for (let p = 0; p < pagesVisited.length; p++) {
-        // Determine custom events for specific funnel stages
-        let customEvent: string | undefined;
-        if (funnelType === 'signup' && p === pagesVisited.length - 1 && stepsCompleted === fullPath.length) {
-          customEvent = 'signup_complete';
-        }
-        if (funnelType === 'feature' && p === pagesVisited.length - 1 && stepsCompleted === fullPath.length) {
-          customEvent = 'file_download';
+      if (funnelType === 'signup') {
+        // Signup: / -> /pricing -> /signup -> signup_complete event
+        // Conditional drop-off: each step has a % chance of continuing
+        const pages = ['/', '/pricing', '/signup'];
+        const continueRates = [0.70, 0.60, 0.55]; // % that continue to next step
+        let stepsCompleted = 1;
+        for (let i = 0; i < continueRates.length - 1; i++) {
+          if (Math.random() < continueRates[i]) stepsCompleted++;
+          else break;
         }
 
-        const { events, endTime } = generatePageEvents(
-          siteId, sessionId, pagesVisited[p], currentTime, base, p === 0, customEvent
+        for (let p = 0; p < stepsCompleted; p++) {
+          const { events, endTime } = generatePageEvents(
+            siteId, sessionId, pages[p], currentTime, base, p === 0
+          );
+          for (const evt of events) await addEvent(evt);
+          currentTime = endTime;
+        }
+
+        // If reached /signup, chance of completing signup
+        if (stepsCompleted === 3 && Math.random() < continueRates[2]) {
+          const { events, endTime } = generatePageEvents(
+            siteId, sessionId, '/signup', currentTime, base, false, 'signup_complete'
+          );
+          for (const evt of events) await addEvent(evt);
+          currentTime = endTime;
+        }
+
+      } else if (funnelType === 'onboarding') {
+        // Onboarding funnel step 1 is signup_complete event, so session must
+        // first complete signup, then walk through onboarding pages.
+        // Emit signup_complete event on /signup page
+        const { events: signupEvents, endTime: afterSignup } = generatePageEvents(
+          siteId, sessionId, '/signup', currentTime, base, true, 'signup_complete'
         );
-        for (const evt of events) await addEvent(evt);
-        currentTime = endTime;
+        for (const evt of signupEvents) await addEvent(evt);
+        currentTime = afterSignup;
+
+        // Now walk through onboarding pages with conditional drop-off
+        const onboardingPages = ['/onboarding', '/onboarding/profile', '/onboarding/integrate', '/onboarding/verify'];
+        const continueRates = [0.85, 0.75, 0.65, 0.55]; // high retention since they just signed up
+        let stepsCompleted = 0;
+        for (let i = 0; i < onboardingPages.length; i++) {
+          if (Math.random() < continueRates[i]) {
+            stepsCompleted++;
+            const { events, endTime } = generatePageEvents(
+              siteId, sessionId, onboardingPages[i], currentTime, base, false
+            );
+            for (const evt of events) await addEvent(evt);
+            currentTime = endTime;
+          } else {
+            break;
+          }
+        }
+
+      } else if (funnelType === 'content') {
+        // Content: blog post -> second blog post -> signup
+        const pages = ['/blog/getting-started', '/blog/analytics-tips', '/signup'];
+        const continueRates = [0.55, 0.35];
+        let stepsCompleted = 1;
+
+        const { events: firstEvents, endTime: afterFirst } = generatePageEvents(
+          siteId, sessionId, pages[0], currentTime, base, true
+        );
+        for (const evt of firstEvents) await addEvent(evt);
+        currentTime = afterFirst;
+
+        for (let i = 0; i < continueRates.length; i++) {
+          if (Math.random() < continueRates[i]) {
+            stepsCompleted++;
+            const { events, endTime } = generatePageEvents(
+              siteId, sessionId, pages[stepsCompleted - 1], currentTime, base, false
+            );
+            for (const evt of events) await addEvent(evt);
+            currentTime = endTime;
+          } else {
+            break;
+          }
+        }
+
+      } else {
+        // Feature: /features -> /docs/setup -> file_download event -> signup_complete event
+        const { events: featEvents, endTime: afterFeat } = generatePageEvents(
+          siteId, sessionId, '/features', currentTime, base, true
+        );
+        for (const evt of featEvents) await addEvent(evt);
+        currentTime = afterFeat;
+
+        if (Math.random() < 0.65) {
+          const { events: docsEvents, endTime: afterDocs } = generatePageEvents(
+            siteId, sessionId, '/docs/setup', currentTime, base, false
+          );
+          for (const evt of docsEvents) await addEvent(evt);
+          currentTime = afterDocs;
+
+          // file_download event
+          if (Math.random() < 0.50) {
+            const { events: dlEvents, endTime: afterDl } = generatePageEvents(
+              siteId, sessionId, '/docs/setup', currentTime, base, false, 'file_download'
+            );
+            for (const evt of dlEvents) await addEvent(evt);
+            currentTime = afterDl;
+
+            // signup_complete after download
+            if (Math.random() < 0.40) {
+              const { events: signupEvents, endTime: afterSignup } = generatePageEvents(
+                siteId, sessionId, '/signup', currentTime, base, false, 'signup_complete'
+              );
+              for (const evt of signupEvents) await addEvent(evt);
+              currentTime = afterSignup;
+            }
+          }
+        }
       }
 
       // Some funnel sessions continue browsing after the funnel
