@@ -27,7 +27,7 @@
       sid: sessionId,
       t: type,
       u: location.pathname + location.search,
-      r: d.referrer || null,
+      r: (() => { try { return d.referrer && new URL(d.referrer).hostname !== location.hostname ? d.referrer : null; } catch { return null; } })(),
       w: w.innerWidth,
       ts: Date.now()
     };

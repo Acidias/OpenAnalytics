@@ -98,6 +98,16 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     const device = classifyDevice(data.w);
     const utm = extractUtm(data.u);
 
+    // Strip self-referrals (same-domain referrers are internal navigation, not sources)
+    let referrer = data.r || null;
+    if (referrer) {
+      try {
+        const refHost = new URL(referrer).hostname.replace(/^www\./, '');
+        const siteHost = siteDomain.replace(/^www\./, '');
+        if (refHost === siteHost) referrer = null;
+      } catch { referrer = null; }
+    }
+
     // Extract behavioral fields from properties
     const props = data.p || {};
     const durationMs = typeof props.duration_ms === 'number' ? props.duration_ms : null;
@@ -128,7 +138,7 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
         $20
       )`,
       [
-        siteId, data.sid, data.t, data.u || null, data.r || null,
+        siteId, data.sid, data.t, data.u || null, referrer,
         durationMs, scrollMaxPct, engaged,
         country, region, city, device, browser, os,
         utm.utm_source, utm.utm_medium, utm.utm_campaign, utm.utm_term, utm.utm_content,

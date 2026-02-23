@@ -54,6 +54,8 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
       query(
         `SELECT referrer, COUNT(*) AS count
          FROM events WHERE site_id = $1 AND event = 'pageview' AND referrer IS NOT NULL AND time BETWEEN $2 AND $3
+           AND replace(substring(referrer from '://([^/:]+)'), 'www.', '')
+               != replace((SELECT domain FROM sites WHERE id = $1), 'www.', '')
          GROUP BY referrer ORDER BY count DESC LIMIT 10`,
         [id, from, to]
       ),
@@ -144,6 +146,8 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
     const result = await query(
       `SELECT referrer, COUNT(*) AS visits, COUNT(DISTINCT session_id) AS visitors
        FROM events WHERE site_id = $1 AND event = 'pageview' AND referrer IS NOT NULL AND time BETWEEN $2 AND $3
+         AND replace(substring(referrer from '://([^/:]+)'), 'www.', '')
+             != replace((SELECT domain FROM sites WHERE id = $1), 'www.', '')
        GROUP BY referrer ORDER BY visits DESC LIMIT 50`,
       [id, from, to]
     );
