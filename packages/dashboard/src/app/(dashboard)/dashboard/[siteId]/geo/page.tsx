@@ -4,9 +4,10 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
+import { WorldMap } from "@/components/charts/world-map";
 import { api } from "@/lib/api";
 import { formatNumber } from "@/lib/utils";
-import { Globe, Users } from "lucide-react";
+import { Globe, Users, Map as MapIcon } from "lucide-react";
 
 interface GeoRow {
   country: string;
@@ -56,6 +57,7 @@ export default function GeoPage() {
             />
           ))}
         </div>
+        <div className="h-[440px] rounded-lg border bg-card animate-pulse" />
         <div className="rounded-lg border bg-card animate-pulse">
           <div className="p-6 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => (
@@ -89,6 +91,12 @@ export default function GeoPage() {
   const totalVisitors = countries.reduce((sum, c) => sum + c.visitors, 0);
   const maxVisitors = Math.max(...countries.map((c) => c.visitors), 1);
 
+  // Build map data: country code -> visitor count
+  const mapData: Record<string, number> = {};
+  for (const c of countries) {
+    mapData[c.country] = c.visitors;
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -118,6 +126,19 @@ export default function GeoPage() {
           <p className="text-2xl font-bold tracking-tight">{formatNumber(totalVisitors)}</p>
         </div>
       </div>
+
+      {/* World Map */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-2">
+            <MapIcon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium">Visitor Map</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <WorldMap data={mapData} maxValue={maxVisitors} />
+        </CardContent>
+      </Card>
 
       {/* Countries List */}
       <Card>
