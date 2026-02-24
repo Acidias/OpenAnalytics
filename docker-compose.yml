@@ -53,7 +53,7 @@ services:
             echo "ERROR: DB_PASSWORD must be changed from default values when OA_ENV is not dev." >&2
             exit 1
           fi
-          if [ "${#DB_PASSWORD}" -lt 16 ]; then
+          if [ "$${#DB_PASSWORD}" -lt 16 ]; then
             echo "ERROR: DB_PASSWORD must be at least 16 characters when OA_ENV is not dev." >&2
             exit 1
           fi
