@@ -44,12 +44,12 @@ services:
       - sh
       - -ec
       - |
-        if [ "${OA_ENV:-dev}" != "dev" ] && [ "${OA_ENV:-dev}" != "development" ]; then
-          if [ "${DB_USER:-openanalytics}" = "openanalytics" ] || [ "${DB_USER:-openanalytics}" = "postgres" ]; then
+        if [ "$${OA_ENV:-dev}" != "dev" ] && [ "$${OA_ENV:-dev}" != "development" ]; then
+          if [ "$${DB_USER:-openanalytics}" = "openanalytics" ] || [ "$${DB_USER:-openanalytics}" = "postgres" ]; then
             echo "ERROR: DB_USER must be a non-default value when OA_ENV is not dev." >&2
             exit 1
           fi
-          if [ "${DB_PASSWORD:-changeme}" = "changeme" ] || [ "${DB_PASSWORD:-changeme}" = "openanalytics" ] || [ "${DB_PASSWORD:-changeme}" = "postgres" ]; then
+          if [ "$${DB_PASSWORD:-changeme}" = "changeme" ] || [ "$${DB_PASSWORD:-changeme}" = "openanalytics" ] || [ "$${DB_PASSWORD:-changeme}" = "postgres" ]; then
             echo "ERROR: DB_PASSWORD must be changed from default values when OA_ENV is not dev." >&2
             exit 1
           fi

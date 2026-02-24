@@ -1,18 +1,18 @@
 services:
   postgres:
-    profiles: ["prod"]
+
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
 
   redis:
-    profiles: ["prod"]
+
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
 
   api:
-    profiles: ["prod"]
+
     restart: unless-stopped
     read_only: true
     security_opt:
@@ -23,7 +23,7 @@ services:
       - /tmp
 
   dashboard:
-    profiles: ["prod"]
+
     restart: unless-stopped
     read_only: true
     security_opt:
