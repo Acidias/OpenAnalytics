@@ -109,3 +109,6 @@ export {
   DEFAULT_FUNNEL_STEP_TIMEOUT_MS,
   PLAN_LIMITS,
 } from './constants.js';
+
+// City coordinates fallback for geo enrichment
+export { CITY_COORDINATES } from './city-coordinates.js';

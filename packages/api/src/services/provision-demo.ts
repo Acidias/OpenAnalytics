@@ -54,8 +54,73 @@ const referrers = [
 ];
 const referrerWeights = [40, 20, 15, 10, 5, 4, 3, 3];
 
-const countries = ['US', 'GB', 'DE', 'FR', 'CA', 'JP', 'AU', 'NL', 'IN', 'BR'];
-const countryWeights = [35, 15, 12, 8, 7, 5, 5, 5, 4, 4];
+// ─── City-level geo data ─────────────────────
+
+interface CityData {
+  country: string;
+  region: string;
+  city: string;
+  lat: number;
+  lon: number;
+}
+
+const cities: CityData[] = [
+  // US
+  { country: 'US', region: 'NY', city: 'New York', lat: 40.7128, lon: -74.0060 },
+  { country: 'US', region: 'CA', city: 'Los Angeles', lat: 34.0522, lon: -118.2437 },
+  { country: 'US', region: 'CA', city: 'San Francisco', lat: 37.7749, lon: -122.4194 },
+  { country: 'US', region: 'TX', city: 'Austin', lat: 30.2672, lon: -97.7431 },
+  { country: 'US', region: 'WA', city: 'Seattle', lat: 47.6062, lon: -122.3321 },
+  { country: 'US', region: 'CO', city: 'Denver', lat: 39.7392, lon: -104.9903 },
+  { country: 'US', region: 'MA', city: 'Boston', lat: 42.3601, lon: -71.0589 },
+  { country: 'US', region: 'FL', city: 'Miami', lat: 25.7617, lon: -80.1918 },
+  // GB
+  { country: 'GB', region: 'ENG', city: 'London', lat: 51.5074, lon: -0.1278 },
+  { country: 'GB', region: 'ENG', city: 'Manchester', lat: 53.4808, lon: -2.2426 },
+  { country: 'GB', region: 'SCT', city: 'Edinburgh', lat: 55.9533, lon: -3.1883 },
+  // DE
+  { country: 'DE', region: 'BE', city: 'Berlin', lat: 52.5200, lon: 13.4050 },
+  { country: 'DE', region: 'BY', city: 'Munich', lat: 48.1351, lon: 11.5820 },
+  { country: 'DE', region: 'HH', city: 'Hamburg', lat: 53.5511, lon: 9.9937 },
+  // FR
+  { country: 'FR', region: 'IDF', city: 'Paris', lat: 48.8566, lon: 2.3522 },
+  { country: 'FR', region: 'PAC', city: 'Marseille', lat: 43.2965, lon: 5.3698 },
+  { country: 'FR', region: 'ARA', city: 'Lyon', lat: 45.7640, lon: 4.8357 },
+  // CA
+  { country: 'CA', region: 'ON', city: 'Toronto', lat: 43.6532, lon: -79.3832 },
+  { country: 'CA', region: 'BC', city: 'Vancouver', lat: 49.2827, lon: -123.1207 },
+  { country: 'CA', region: 'QC', city: 'Montreal', lat: 45.5017, lon: -73.5673 },
+  // JP
+  { country: 'JP', region: '13', city: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+  { country: 'JP', region: '27', city: 'Osaka', lat: 34.6937, lon: 135.5023 },
+  // AU
+  { country: 'AU', region: 'NSW', city: 'Sydney', lat: -33.8688, lon: 151.2093 },
+  { country: 'AU', region: 'VIC', city: 'Melbourne', lat: -37.8136, lon: 144.9631 },
+  // NL
+  { country: 'NL', region: 'NH', city: 'Amsterdam', lat: 52.3676, lon: 4.9041 },
+  { country: 'NL', region: 'ZH', city: 'Rotterdam', lat: 51.9244, lon: 4.4777 },
+  // IN
+  { country: 'IN', region: 'MH', city: 'Mumbai', lat: 19.0760, lon: 72.8777 },
+  { country: 'IN', region: 'KA', city: 'Bangalore', lat: 12.9716, lon: 77.5946 },
+  { country: 'IN', region: 'DL', city: 'Delhi', lat: 28.7041, lon: 77.1025 },
+  // BR
+  { country: 'BR', region: 'SP', city: 'Sao Paulo', lat: -23.5505, lon: -46.6333 },
+  { country: 'BR', region: 'RJ', city: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729 },
+  { country: 'BR', region: 'DF', city: 'Brasilia', lat: -15.7975, lon: -47.8919 },
+];
+
+const countryWeights: Record<string, number> = {
+  US: 35, GB: 15, DE: 12, FR: 8, CA: 7, JP: 5, AU: 5, NL: 5, IN: 4, BR: 4,
+};
+
+const citiesByCountry: Record<string, CityData[]> = {};
+for (const c of cities) {
+  if (!citiesByCountry[c.country]) citiesByCountry[c.country] = [];
+  citiesByCountry[c.country].push(c);
+}
+
+const countryList = Object.keys(countryWeights);
+const countryWeightList = countryList.map((c) => countryWeights[c]);
 
 const deviceTypes = ['Desktop', 'Mobile', 'Tablet'];
 const deviceWeights = [65, 28, 7];
@@ -87,6 +152,10 @@ interface EventRow {
   path: string;
   referrer: string | null;
   country: string;
+  region: string | null;
+  city: string | null;
+  latitude: number | null;
+  longitude: number | null;
   device: string;
   browser: string;
   os: string;
@@ -100,16 +169,17 @@ interface EventRow {
 async function flushBatch(client: any, batch: EventRow[]) {
   if (batch.length === 0) return;
 
-  const cols = 'time, site_id, session_id, event, path, referrer, country, device, browser, os, duration_ms, scroll_max_pct, engaged, properties';
+  const cols = 'time, site_id, session_id, event, path, referrer, country, region, city, latitude, longitude, device, browser, os, duration_ms, scroll_max_pct, engaged, properties';
   const placeholders: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
 
   for (const row of batch) {
-    placeholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
+    placeholders.push(`($${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++}, $${idx++})`);
     values.push(
       row.time, row.site_id, row.session_id, row.event, row.path,
-      row.referrer, row.country, row.device, row.browser, row.os,
+      row.referrer, row.country, row.region, row.city, row.latitude, row.longitude,
+      row.device, row.browser, row.os,
       row.duration_ms, row.scroll_max_pct, row.engaged, row.properties
     );
   }
@@ -123,9 +193,19 @@ async function flushBatch(client: any, batch: EventRow[]) {
 // ─── Session generators ──────────────────────
 
 function makeBaseSession() {
+  const country = pick(countryList, countryWeightList);
+  const countryCities = citiesByCountry[country];
+  const cityData = countryCities
+    ? countryCities[Math.floor(Math.random() * countryCities.length)]
+    : null;
+
   return {
     referrer: pick(referrers, referrerWeights),
-    country: pick(countries, countryWeights),
+    country,
+    region: cityData?.region ?? null,
+    city: cityData?.city ?? null,
+    latitude: cityData?.lat ?? null,
+    longitude: cityData?.lon ?? null,
     device: pick(deviceTypes, deviceWeights),
     browser: pick(browsers, browserWeights),
     os: pick(operatingSystems, osWeights),
@@ -146,6 +226,14 @@ function generatePageEvents(
   const scrollPct = randInt(10, 100);
   const engaged = dwellMs > 5000;
 
+  const geo = {
+    country: base.country,
+    region: base.region,
+    city: base.city,
+    latitude: base.latitude,
+    longitude: base.longitude,
+  };
+
   // Pageview
   events.push({
     time: new Date(startTime),
@@ -154,7 +242,7 @@ function generatePageEvents(
     event: 'pageview',
     path: pagePath,
     referrer: isFirstPage ? base.referrer : null,
-    country: base.country,
+    ...geo,
     device: base.device,
     browser: base.browser,
     os: base.os,
@@ -173,7 +261,7 @@ function generatePageEvents(
       event: 'engage',
       path: pagePath,
       referrer: null,
-      country: base.country,
+      ...geo,
       device: base.device,
       browser: base.browser,
       os: base.os,
@@ -193,7 +281,7 @@ function generatePageEvents(
       event: emitCustomEvent,
       path: pagePath,
       referrer: null,
-      country: base.country,
+      ...geo,
       device: base.device,
       browser: base.browser,
       os: base.os,
@@ -211,7 +299,7 @@ function generatePageEvents(
       event: customEvent,
       path: pagePath,
       referrer: null,
-      country: base.country,
+      ...geo,
       device: base.device,
       browser: base.browser,
       os: base.os,
@@ -231,7 +319,7 @@ function generatePageEvents(
     event: 'pageleave',
     path: pagePath,
     referrer: null,
-    country: base.country,
+    ...geo,
     device: base.device,
     browser: base.browser,
     os: base.os,
@@ -303,10 +391,8 @@ async function populateDemoData(siteId: string): Promise<void> {
       let currentTime = sessionStart;
 
       if (funnelType === 'signup') {
-        // Signup: / -> /pricing -> /signup -> signup_complete event
-        // Conditional drop-off: each step has a % chance of continuing
         const pages = ['/', '/pricing', '/signup'];
-        const continueRates = [0.70, 0.60, 0.55]; // % that continue to next step
+        const continueRates = [0.70, 0.60, 0.55];
         let stepsCompleted = 1;
         for (let i = 0; i < continueRates.length - 1; i++) {
           if (Math.random() < continueRates[i]) stepsCompleted++;
@@ -321,7 +407,6 @@ async function populateDemoData(siteId: string): Promise<void> {
           currentTime = endTime;
         }
 
-        // If reached /signup, chance of completing signup
         if (stepsCompleted === 3 && Math.random() < continueRates[2]) {
           const { events, endTime } = generatePageEvents(
             siteId, sessionId, '/signup', currentTime, base, false, 'signup_complete'
@@ -331,22 +416,16 @@ async function populateDemoData(siteId: string): Promise<void> {
         }
 
       } else if (funnelType === 'onboarding') {
-        // Onboarding funnel step 1 is signup_complete event, so session must
-        // first complete signup, then walk through onboarding pages.
-        // Emit signup_complete event on /signup page
         const { events: signupEvents, endTime: afterSignup } = generatePageEvents(
           siteId, sessionId, '/signup', currentTime, base, true, 'signup_complete'
         );
         for (const evt of signupEvents) await addEvent(evt);
         currentTime = afterSignup;
 
-        // Now walk through onboarding pages with conditional drop-off
         const onboardingPages = ['/onboarding', '/onboarding/profile', '/onboarding/integrate', '/onboarding/verify'];
-        const continueRates = [0.85, 0.75, 0.65, 0.55]; // high retention since they just signed up
-        let stepsCompleted = 0;
+        const continueRates = [0.85, 0.75, 0.65, 0.55];
         for (let i = 0; i < onboardingPages.length; i++) {
           if (Math.random() < continueRates[i]) {
-            stepsCompleted++;
             const { events, endTime } = generatePageEvents(
               siteId, sessionId, onboardingPages[i], currentTime, base, false
             );
@@ -358,7 +437,6 @@ async function populateDemoData(siteId: string): Promise<void> {
         }
 
       } else if (funnelType === 'content') {
-        // Content: blog post -> second blog post -> signup
         const pages = ['/blog/getting-started', '/blog/analytics-tips', '/signup'];
         const continueRates = [0.55, 0.35];
         let stepsCompleted = 1;
@@ -383,7 +461,6 @@ async function populateDemoData(siteId: string): Promise<void> {
         }
 
       } else {
-        // Feature: /features -> /docs/setup -> file_download event -> signup_complete event
         const { events: featEvents, endTime: afterFeat } = generatePageEvents(
           siteId, sessionId, '/features', currentTime, base, true
         );
@@ -397,7 +474,6 @@ async function populateDemoData(siteId: string): Promise<void> {
           for (const evt of docsEvents) await addEvent(evt);
           currentTime = afterDocs;
 
-          // file_download event
           if (Math.random() < 0.50) {
             const { events: dlEvents, endTime: afterDl } = generatePageEvents(
               siteId, sessionId, '/docs/setup', currentTime, base, false, 'file_download'
@@ -405,7 +481,6 @@ async function populateDemoData(siteId: string): Promise<void> {
             for (const evt of dlEvents) await addEvent(evt);
             currentTime = afterDl;
 
-            // signup_complete after download
             if (Math.random() < 0.40) {
               const { events: signupEvents, endTime: afterSignup } = generatePageEvents(
                 siteId, sessionId, '/signup', currentTime, base, false, 'signup_complete'

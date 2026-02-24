@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { query } from '../db/connection';
 import { redisSub } from '../db/redis';
 import { authMiddleware, verifySiteAccess } from '../middleware/auth';
+import { CITY_COORDINATES } from '@openanalytics/shared';
 
 const dateRangeSchema = z.object({
   from: z.string().optional(),
@@ -159,11 +160,28 @@ export default async function analyticsRoutes(fastify: FastifyInstance) {
     const { id } = request.params;
     const { from, to } = getDateRange(request.query as Record<string, unknown>);
     const result = await query(
-      `SELECT country, region, city, COUNT(DISTINCT session_id) AS visitors, COUNT(*) FILTER (WHERE event = 'pageview') AS pageviews
+      `SELECT country, region, city,
+              COUNT(DISTINCT session_id) AS visitors,
+              COUNT(*) FILTER (WHERE event = 'pageview') AS pageviews,
+              ROUND(AVG(latitude)::numeric, 4) AS latitude,
+              ROUND(AVG(longitude)::numeric, 4) AS longitude
        FROM events WHERE site_id = $1 AND country IS NOT NULL AND time BETWEEN $2 AND $3
        GROUP BY country, region, city ORDER BY visitors DESC LIMIT 100`,
       [id, from, to]
     );
+
+    // Enrich rows missing coordinates using static city lookup
+    for (const row of result.rows) {
+      if (row.latitude == null && row.city && row.country) {
+        const key = `${row.city}|${row.country}`;
+        const coords = CITY_COORDINATES[key];
+        if (coords) {
+          row.latitude = coords[0];
+          row.longitude = coords[1];
+        }
+      }
+    }
+
     return { geo: result.rows };
   });
 

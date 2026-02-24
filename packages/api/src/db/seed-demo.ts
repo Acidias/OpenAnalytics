@@ -59,8 +59,68 @@ const referrers = [
 ];
 const referrerWeights = [40, 20, 15, 10, 5, 4, 3, 3];
 
-const countries = ['US', 'GB', 'DE', 'FR', 'CA', 'JP', 'AU', 'NL', 'IN', 'BR'];
-const countryWeights = [35, 15, 12, 8, 7, 5, 5, 5, 4, 4];
+// ─── City-level geo data ─────────────────────
+
+interface CityData {
+  country: string;
+  region: string;
+  city: string;
+  lat: number;
+  lon: number;
+}
+
+const cities: CityData[] = [
+  { country: 'US', region: 'NY', city: 'New York', lat: 40.7128, lon: -74.0060 },
+  { country: 'US', region: 'CA', city: 'Los Angeles', lat: 34.0522, lon: -118.2437 },
+  { country: 'US', region: 'CA', city: 'San Francisco', lat: 37.7749, lon: -122.4194 },
+  { country: 'US', region: 'TX', city: 'Austin', lat: 30.2672, lon: -97.7431 },
+  { country: 'US', region: 'WA', city: 'Seattle', lat: 47.6062, lon: -122.3321 },
+  { country: 'US', region: 'CO', city: 'Denver', lat: 39.7392, lon: -104.9903 },
+  { country: 'US', region: 'MA', city: 'Boston', lat: 42.3601, lon: -71.0589 },
+  { country: 'US', region: 'FL', city: 'Miami', lat: 25.7617, lon: -80.1918 },
+  { country: 'GB', region: 'ENG', city: 'London', lat: 51.5074, lon: -0.1278 },
+  { country: 'GB', region: 'ENG', city: 'Manchester', lat: 53.4808, lon: -2.2426 },
+  { country: 'GB', region: 'SCT', city: 'Edinburgh', lat: 55.9533, lon: -3.1883 },
+  { country: 'DE', region: 'BE', city: 'Berlin', lat: 52.5200, lon: 13.4050 },
+  { country: 'DE', region: 'BY', city: 'Munich', lat: 48.1351, lon: 11.5820 },
+  { country: 'DE', region: 'HH', city: 'Hamburg', lat: 53.5511, lon: 9.9937 },
+  { country: 'FR', region: 'IDF', city: 'Paris', lat: 48.8566, lon: 2.3522 },
+  { country: 'FR', region: 'PAC', city: 'Marseille', lat: 43.2965, lon: 5.3698 },
+  { country: 'FR', region: 'ARA', city: 'Lyon', lat: 45.7640, lon: 4.8357 },
+  { country: 'CA', region: 'ON', city: 'Toronto', lat: 43.6532, lon: -79.3832 },
+  { country: 'CA', region: 'BC', city: 'Vancouver', lat: 49.2827, lon: -123.1207 },
+  { country: 'CA', region: 'QC', city: 'Montreal', lat: 45.5017, lon: -73.5673 },
+  { country: 'JP', region: '13', city: 'Tokyo', lat: 35.6762, lon: 139.6503 },
+  { country: 'JP', region: '27', city: 'Osaka', lat: 34.6937, lon: 135.5023 },
+  { country: 'AU', region: 'NSW', city: 'Sydney', lat: -33.8688, lon: 151.2093 },
+  { country: 'AU', region: 'VIC', city: 'Melbourne', lat: -37.8136, lon: 144.9631 },
+  { country: 'NL', region: 'NH', city: 'Amsterdam', lat: 52.3676, lon: 4.9041 },
+  { country: 'NL', region: 'ZH', city: 'Rotterdam', lat: 51.9244, lon: 4.4777 },
+  { country: 'IN', region: 'MH', city: 'Mumbai', lat: 19.0760, lon: 72.8777 },
+  { country: 'IN', region: 'KA', city: 'Bangalore', lat: 12.9716, lon: 77.5946 },
+  { country: 'IN', region: 'DL', city: 'Delhi', lat: 28.7041, lon: 77.1025 },
+  { country: 'BR', region: 'SP', city: 'Sao Paulo', lat: -23.5505, lon: -46.6333 },
+  { country: 'BR', region: 'RJ', city: 'Rio de Janeiro', lat: -22.9068, lon: -43.1729 },
+];
+
+const countryWeights: Record<string, number> = {
+  US: 35, GB: 15, DE: 12, FR: 8, CA: 7, JP: 5, AU: 5, NL: 5, IN: 4, BR: 4,
+};
+
+const citiesByCountry: Record<string, CityData[]> = {};
+for (const c of cities) {
+  if (!citiesByCountry[c.country]) citiesByCountry[c.country] = [];
+  citiesByCountry[c.country].push(c);
+}
+
+const countryList = Object.keys(countryWeights);
+const countryWeightList = countryList.map((c) => countryWeights[c]);
+
+function pickCity(): CityData {
+  const country = pick(countryList, countryWeightList);
+  const countryCities = citiesByCountry[country];
+  return countryCities[Math.floor(Math.random() * countryCities.length)];
+}
 
 const deviceTypes = ['Desktop', 'Mobile', 'Tablet'];
 const deviceWeights = [65, 28, 7];
@@ -127,7 +187,7 @@ async function seed() {
       const sessionStart = startTime + Math.random() * (now - startTime);
       const pageCount = randInt(1, 8);
       const referrer = pick(referrers, referrerWeights);
-      const country = pick(countries, countryWeights);
+      const cityData = pickCity();
       const device = pick(deviceTypes, deviceWeights);
       const browser = pick(browsers, browserWeights);
       const os = pick(operatingSystems, osWeights);
@@ -142,19 +202,22 @@ async function seed() {
 
         // Pageview event
         await client.query(
-          `INSERT INTO events (time, site_id, session_id, event, path, referrer, country, device, browser, os)
-           VALUES ($1, $2, $3, 'pageview', $4, $5, $6, $7, $8, $9)`,
+          `INSERT INTO events (time, site_id, session_id, event, path, referrer, country, region, city, latitude, longitude, device, browser, os)
+           VALUES ($1, $2, $3, 'pageview', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
           [new Date(currentTime), siteId, sessionId, path,
-           p === 0 ? referrer : null, country, device, browser, os]
+           p === 0 ? referrer : null, cityData.country, cityData.region, cityData.city, cityData.lat, cityData.lon,
+           device, browser, os]
         );
         totalEvents++;
 
         // Engage event (if dwell > 5s)
         if (engaged) {
           await client.query(
-            `INSERT INTO events (time, site_id, session_id, event, path, engaged, country, device, browser, os)
-             VALUES ($1, $2, $3, 'engage', $4, true, $5, $6, $7, $8)`,
-            [new Date(currentTime + 5000), siteId, sessionId, path, country, device, browser, os]
+            `INSERT INTO events (time, site_id, session_id, event, path, engaged, country, region, city, latitude, longitude, device, browser, os)
+             VALUES ($1, $2, $3, 'engage', $4, true, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [new Date(currentTime + 5000), siteId, sessionId, path,
+             cityData.country, cityData.region, cityData.city, cityData.lat, cityData.lon,
+             device, browser, os]
           );
           totalEvents++;
         }
@@ -163,10 +226,12 @@ async function seed() {
         if (Math.random() < 0.15) {
           const customEvent = pick(customEvents, [10, 30, 15, 10, 10]);
           await client.query(
-            `INSERT INTO events (time, site_id, session_id, event, path, country, device, browser, os, properties)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+            `INSERT INTO events (time, site_id, session_id, event, path, country, region, city, latitude, longitude, device, browser, os, properties)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
             [new Date(currentTime + randInt(2000, dwellMs)),
-             siteId, sessionId, customEvent, path, country, device, browser, os,
+             siteId, sessionId, customEvent, path,
+             cityData.country, cityData.region, cityData.city, cityData.lat, cityData.lon,
+             device, browser, os,
              JSON.stringify({ source: 'demo' })]
           );
           totalEvents++;
@@ -175,10 +240,11 @@ async function seed() {
         // Pageleave event
         const leaveTime = currentTime + dwellMs;
         await client.query(
-          `INSERT INTO events (time, site_id, session_id, event, path, duration_ms, scroll_max_pct, engaged, country, device, browser, os)
-           VALUES ($1, $2, $3, 'pageleave', $4, $5, $6, $7, $8, $9, $10, $11)`,
+          `INSERT INTO events (time, site_id, session_id, event, path, duration_ms, scroll_max_pct, engaged, country, region, city, latitude, longitude, device, browser, os)
+           VALUES ($1, $2, $3, 'pageleave', $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
           [new Date(leaveTime), siteId, sessionId, path, dwellMs, scrollPct, engaged,
-           country, device, browser, os]
+           cityData.country, cityData.region, cityData.city, cityData.lat, cityData.lon,
+           device, browser, os]
         );
         totalEvents++;
 
@@ -262,11 +328,11 @@ async function seed() {
     console.log('  Goals already exist, skipping');
   }
 
-  console.log('\n─── Demo credentials ───────────────');
+  console.log('\n--- Demo credentials -------------------');
   console.log(`  Email:    ${DEMO_EMAIL}`);
   console.log(`  Password: ${DEMO_PASSWORD}`);
   console.log(`  Site:     ${DEMO_SITE_NAME} (${DEMO_DOMAIN})`);
-  console.log('────────────────────────────────────\n');
+  console.log('----------------------------------------\n');
 
   await pool.end();
 }

@@ -2,17 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DateRangePicker } from "@/components/dashboard/date-range-picker";
-import { WorldMap } from "@/components/charts/world-map";
 import { api } from "@/lib/api";
 import { formatNumber } from "@/lib/utils";
-import { Globe, Users, Map as MapIcon } from "lucide-react";
+import { Globe, Users, MapPin } from "lucide-react";
+
+const CityMap = dynamic(
+  () => import("@/components/charts/city-map").then((mod) => mod.CityMap),
+  { ssr: false, loading: () => <div className="h-[440px] rounded-lg bg-muted animate-pulse" /> }
+);
 
 interface GeoRow {
   country: string;
+  region?: string;
+  city?: string;
   visitors: number;
   pageviews: number;
+  latitude?: number;
+  longitude?: number;
 }
 
 function countryFlag(code: string): string {
@@ -49,8 +58,8 @@ export default function GeoPage() {
           <div className="h-8 w-32 rounded bg-muted animate-pulse" />
           <div className="h-9 w-40 rounded bg-muted animate-pulse" />
         </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          {Array.from({ length: 2 }).map((_, i) => (
+        <div className="grid gap-3 md:grid-cols-3">
+          {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
               className="h-20 rounded-lg border bg-card animate-pulse"
@@ -69,7 +78,7 @@ export default function GeoPage() {
     );
   }
 
-  // Aggregate by country (API may return country+region+city rows)
+  // Aggregate by country for country list
   const countryMap = new Map<string, { visitors: number; pageviews: number }>();
   for (const row of geo) {
     const existing = countryMap.get(row.country);
@@ -91,11 +100,20 @@ export default function GeoPage() {
   const totalVisitors = countries.reduce((sum, c) => sum + c.visitors, 0);
   const maxVisitors = Math.max(...countries.map((c) => c.visitors), 1);
 
-  // Build map data: country code -> visitor count
-  const mapData: Record<string, number> = {};
-  for (const c of countries) {
-    mapData[c.country] = c.visitors;
-  }
+  // Build city locations for the map (only rows with coordinates)
+  const cityLocations = geo
+    .filter((r) => r.latitude != null && r.longitude != null && r.city)
+    .map((r) => ({
+      city: r.city!,
+      country: r.country,
+      latitude: Number(r.latitude),
+      longitude: Number(r.longitude),
+      visitors: Number(r.visitors),
+      pageviews: Number(r.pageviews),
+    }));
+
+  const totalCities = new Set(cityLocations.map((c) => `${c.city}|${c.country}`)).size;
+  const maxCityVisitors = Math.max(...cityLocations.map((c) => c.visitors), 1);
 
   return (
     <div className="space-y-6">
@@ -106,7 +124,7 @@ export default function GeoPage() {
       </div>
 
       {/* Stats */}
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 md:grid-cols-3">
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
@@ -119,6 +137,15 @@ export default function GeoPage() {
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              Cities
+            </span>
+            <MapPin className="h-4 w-4 text-muted-foreground/60" />
+          </div>
+          <p className="text-2xl font-bold tracking-tight">{formatNumber(totalCities)}</p>
+        </div>
+        <div className="rounded-lg border bg-card p-4">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Total Visitors
             </span>
             <Users className="h-4 w-4 text-muted-foreground/60" />
@@ -127,16 +154,22 @@ export default function GeoPage() {
         </div>
       </div>
 
-      {/* World Map */}
+      {/* City Map */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
-            <MapIcon className="h-4 w-4 text-muted-foreground" />
+            <MapPin className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-sm font-medium">Visitor Map</CardTitle>
           </div>
         </CardHeader>
         <CardContent className="pt-0">
-          <WorldMap data={mapData} maxValue={maxVisitors} />
+          {cityLocations.length > 0 ? (
+            <CityMap locations={cityLocations} maxVisitors={maxCityVisitors} />
+          ) : (
+            <div className="h-[440px] rounded-lg bg-muted/30 flex items-center justify-center">
+              <p className="text-sm text-muted-foreground">No city-level data available</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -137,6 +137,8 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
     const country = geo?.country || null;
     const region = geo?.region || null;
     const city = geo?.city || null;
+    const latitude = geo?.ll?.[0] ?? null;
+    const longitude = geo?.ll?.[1] ?? null;
 
     // UA parse (header discarded after parse)
     const ua = UAParser(request.headers['user-agent'] || '');
@@ -175,20 +177,20 @@ export default async function trackingRoutes(fastify: FastifyInstance) {
       `INSERT INTO events (
         time, site_id, session_id, event, path, referrer,
         duration_ms, scroll_max_pct, engaged,
-        country, region, city, device, browser, os,
+        country, region, city, latitude, longitude, device, browser, os,
         utm_source, utm_medium, utm_campaign, utm_term, utm_content,
         properties
       ) VALUES (
         NOW(), $1, $2, $3, $4, $5,
         $6, $7, $8,
-        $9, $10, $11, $12, $13, $14,
-        $15, $16, $17, $18, $19,
-        $20
+        $9, $10, $11, $12, $13, $14, $15, $16,
+        $17, $18, $19, $20, $21,
+        $22
       )`,
       [
         siteId, data.sid, data.t, data.u || null, referrer,
         durationMs, scrollMaxPct, engaged,
-        country, region, city, device, browser, os,
+        country, region, city, latitude, longitude, device, browser, os,
         utm.utm_source, utm.utm_medium, utm.utm_campaign, utm.utm_term, utm.utm_content,
         propsJson,
       ]
