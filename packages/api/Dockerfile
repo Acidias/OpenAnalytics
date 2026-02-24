@@ -14,6 +14,7 @@ RUN npm install --workspace=@openanalytics/api --workspace=@openanalytics/shared
 COPY packages/shared/tsconfig.json packages/shared/tsconfig.json
 COPY packages/shared/src/index.ts packages/shared/src/index.ts
 COPY packages/shared/src/constants.ts packages/shared/src/constants.ts
+COPY packages/shared/src/city-coordinates.ts packages/shared/src/city-coordinates.ts
 COPY packages/shared/src/types/ packages/shared/src/types/
 COPY packages/shared/src/schemas/ packages/shared/src/schemas/
 RUN npm run -w @openanalytics/shared build
