@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BarChart3,
   Check,
+  Github,
   Globe,
   Layers,
   MousePointerClick,
@@ -81,7 +82,8 @@ const plans = [
   },
   {
     name: "Cloud",
-    price: "$9/mo",
+    price: "Free",
+    note: "Free for everyone while we can keep the lights on.",
     description: "Managed analytics for modern teams.",
     features: ["100K pageviews/month", "Managed infrastructure", "Email support", "Auto-upgrades"],
     highlighted: true,
@@ -114,6 +116,9 @@ export default function LandingPage() {
             <Link href="#features" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Features</Link>
             <Link href="#showcase" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Showcase</Link>
             <Link href="#pricing" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Pricing</Link>
+            <Link href="https://github.com/Acidias/OpenAnalytics" target="_blank" className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
+              <Github className="h-4 w-4" /> GitHub
+            </Link>
           </nav>
           <div className="flex items-center gap-2">
             <Link href="/login"><Button size="sm" variant="ghost">Sign in</Button></Link>
@@ -137,8 +142,14 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link href="/login"><Button size="lg" className="gap-2">Launch dashboard <ArrowRight className="h-4 w-4" /></Button></Link>
-              <Link href="/demo"><Button size="lg" variant="outline" className="gap-2"><BarChart3 className="h-4 w-4" /> View Demo</Button></Link>
-              <Link href="https://github.com/Acidias/OpenAnalytics" target="_blank"><Button size="lg" variant="outline">View on GitHub</Button></Link>
+              <Link href="/demo"><Button size="lg" variant="secondary" className="gap-2"><BarChart3 className="h-4 w-4" /> View live demo</Button></Link>
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <Link href="https://github.com/Acidias/OpenAnalytics" target="_blank" className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground">
+                <Github className="h-4 w-4" />
+                <span>100% open source - star us on GitHub</span>
+                <ArrowRight className="h-3 w-3" />
+              </Link>
             </div>
           </div>
 
@@ -229,6 +240,7 @@ export default function LandingPage() {
               <div key={plan.name} className={`rounded-2xl border p-7 ${plan.highlighted ? "border-primary bg-primary/5 shadow-xl shadow-primary/10" : "border-border/60 bg-card/60"}`}>
                 <p className="text-sm font-medium text-muted-foreground">{plan.name}</p>
                 <p className="mt-3 text-4xl font-bold">{plan.price}</p>
+                {plan.note && <p className="mt-1 text-xs text-primary/80">{plan.note}</p>}
                 <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
                 <ul className="mt-6 space-y-3">
                   {plan.features.map((feature) => (
@@ -251,6 +263,9 @@ export default function LandingPage() {
         <div className="container mx-auto flex flex-col items-center justify-between gap-3 text-sm text-muted-foreground md:flex-row">
           <div className="flex items-center gap-2"><BarChart3 className="h-4 w-4" /> OpenAnalytics</div>
           <p>Open source analytics for modern product teams.</p>
+          <Link href="https://github.com/Acidias/OpenAnalytics" target="_blank" className="flex items-center gap-1.5 transition-colors hover:text-foreground">
+            <Github className="h-4 w-4" /> Star on GitHub
+          </Link>
         </div>
       </footer>
     </div>
