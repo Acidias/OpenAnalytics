@@ -12,6 +12,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     let mounted = true;
 
+    // Allow unauthenticated access in demo mode
+    const demoSiteId = sessionStorage.getItem("demo_site_id");
+    if (demoSiteId) {
+      setChecked(true);
+      return;
+    }
+
     isLoggedIn().then((loggedIn) => {
       if (!mounted) return;
       if (!loggedIn) {

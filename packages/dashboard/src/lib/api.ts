@@ -39,7 +39,10 @@ async function fetchAPI<T>(path: string, options?: RequestInit, retried = false)
   }
 
   if (res.status === 401 && typeof window !== "undefined") {
-    window.location.href = "/login";
+    const isDemoMode = sessionStorage.getItem("demo_site_id");
+    if (!isDemoMode) {
+      window.location.href = "/login";
+    }
     throw new Error("Unauthorised");
   }
 

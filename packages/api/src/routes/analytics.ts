@@ -2,7 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { query } from '../db/connection';
 import { redisSub } from '../db/redis';
-import { authMiddleware, verifySiteAccess } from '../middleware/auth';
+import { publicDemoAccess } from '../middleware/auth';
 import { CITY_COORDINATES } from '@openanalytics/shared';
 
 const dateRangeSchema = z.object({
@@ -26,8 +26,7 @@ function getDateRange(q: Record<string, unknown>): { from: Date; to: Date } {
 }
 
 export default async function analyticsRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', authMiddleware);
-  fastify.addHook('preHandler', verifySiteAccess);
+  fastify.addHook('preHandler', publicDemoAccess);
 
   // Overview
   fastify.get<{ Params: { id: string }; Querystring: Record<string, unknown> }>('/api/sites/:id/overview', async (request) => {

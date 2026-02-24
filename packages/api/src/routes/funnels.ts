@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { query, getClient } from '../db/connection';
-import { authMiddleware, verifySiteAccess } from '../middleware/auth';
+import { publicDemoAccess } from '../middleware/auth';
 
 const stepSchema = z.object({
   position: z.number().int().positive(),
@@ -20,8 +20,7 @@ const createFunnelSchema = z.object({
 });
 
 export default async function funnelRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', authMiddleware);
-  fastify.addHook('preHandler', verifySiteAccess);
+  fastify.addHook('preHandler', publicDemoAccess);
 
   // List funnels
   fastify.get<{ Params: { id: string } }>('/api/sites/:id/funnels', async (request) => {

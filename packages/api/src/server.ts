@@ -14,6 +14,7 @@ import sitesRoutes from './routes/sites';
 import autotrackRoutes from './routes/autotrack';
 import aiSuggestRoutes from './routes/ai-suggest';
 import authRoutes from './routes/auth';
+import publicDemoRoutes from './routes/public-demo';
 import { csrfProtection } from './middleware/auth';
 import { connectRedis } from './db/redis';
 import { resolveTrustProxyConfig } from './trustProxy';
@@ -131,6 +132,7 @@ async function main() {
   // CSRF protection for state-changing authenticated endpoints
   fastify.addHook('preHandler', csrfProtection);
   // Routes
+  await fastify.register(publicDemoRoutes);
   await fastify.register(authRoutes);
   await fastify.register(trackingRoutes);
   await fastify.register(configRoutes);

@@ -2,6 +2,7 @@ import { FastifyRequest, FastifyReply } from 'fastify';
 import jwt from 'jsonwebtoken';
 import { AUTH_COOKIE_NAME, CSRF_COOKIE_NAME, JWT_SECRET } from '../config';
 import { redis } from '../db/redis';
+import { query } from '../db/connection';
 
 export interface AuthUser {
   id: string;
@@ -112,7 +113,8 @@ export async function csrfProtection(request: FastifyRequest, reply: FastifyRepl
     request.url.startsWith('/api/event') ||
     request.url.startsWith('/api/auth/login') ||
     request.url.startsWith('/api/auth/register') ||
-    request.url.startsWith('/api/auth/refresh')
+    request.url.startsWith('/api/auth/refresh') ||
+    request.url.startsWith('/api/public/')
   ) {
     return;
   }
@@ -141,4 +143,30 @@ export async function verifySiteAccess(request: FastifyRequest, reply: FastifyRe
   if (result.rows.length === 0) {
     return reply.status(404).send({ error: 'Site not found' });
   }
+}
+
+/**
+ * Combined auth middleware for routes that should allow unauthenticated
+ * read-only access to demo sites. For GET requests targeting a demo site
+ * it bypasses auth entirely; for everything else it falls through to
+ * the standard authMiddleware + verifySiteAccess flow.
+ */
+export async function publicDemoAccess(request: FastifyRequest, reply: FastifyReply) {
+  const siteId = (request.params as { id?: string }).id;
+
+  if (siteId && request.method === 'GET') {
+    const result = await query(
+      "SELECT id FROM sites WHERE id = $1 AND settings @> $2",
+      [siteId, '{"is_demo": true}']
+    );
+    if (result.rows.length > 0) {
+      request.user = { id: '__public_demo__' };
+      return;
+    }
+  }
+
+  // Normal auth flow for non-demo or non-GET requests
+  await authMiddleware(request, reply);
+  if (reply.sent) return;
+  await verifySiteAccess(request, reply);
 }

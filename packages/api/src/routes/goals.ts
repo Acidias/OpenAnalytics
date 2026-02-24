@@ -1,7 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { query } from '../db/connection';
-import { authMiddleware, verifySiteAccess } from '../middleware/auth';
+import { publicDemoAccess } from '../middleware/auth';
 
 const createGoalSchema = z.object({
   name: z.string().min(1).max(200),
@@ -12,8 +12,7 @@ const createGoalSchema = z.object({
 });
 
 export default async function goalRoutes(fastify: FastifyInstance) {
-  fastify.addHook('preHandler', authMiddleware);
-  fastify.addHook('preHandler', verifySiteAccess);
+  fastify.addHook('preHandler', publicDemoAccess);
 
   // List goals with completion rates
   fastify.get<{ Params: { id: string }; Querystring: Record<string, string> }>('/api/sites/:id/goals', async (request) => {

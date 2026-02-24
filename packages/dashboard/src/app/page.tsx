@@ -137,6 +137,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <Link href="/login"><Button size="lg" className="gap-2">Launch dashboard <ArrowRight className="h-4 w-4" /></Button></Link>
+              <Link href="/demo"><Button size="lg" variant="outline" className="gap-2"><BarChart3 className="h-4 w-4" /> View Demo</Button></Link>
               <Link href="https://github.com/Acidias/OpenAnalytics" target="_blank"><Button size="lg" variant="outline">View on GitHub</Button></Link>
             </div>
           </div>
