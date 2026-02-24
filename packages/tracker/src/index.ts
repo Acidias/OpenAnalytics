@@ -133,9 +133,9 @@
 
   setupEngagement();
 
-  // Heartbeat every 30s
+  // Heartbeat every 30s (stop after pageleave to avoid ghost events)
   setInterval(function () {
-    if (!d.hidden) {
+    if (!d.hidden && !leaveSent) {
       send('heartbeat', {
         duration_ms: Date.now() - pageEntryTime,
         scroll_pct: maxScroll,

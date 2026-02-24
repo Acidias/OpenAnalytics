@@ -299,6 +299,9 @@ export default function AISetupPage() {
               onChange={(e) => setDescription(e.target.value)}
               disabled={loading}
             />
+            <p className="text-xs text-muted-foreground">
+              Your existing analytics data (pages, events, user flows) is always used to build suggestions.
+            </p>
             <div className="flex items-center justify-between">
               <label className="flex items-center gap-2 text-sm">
                 <input
@@ -308,7 +311,7 @@ export default function AISetupPage() {
                   disabled={loading}
                   className="rounded border-input"
                 />
-                Crawl homepage for page structure
+                Also crawl live website for buttons, forms, and interactive elements
               </label>
               <Button onClick={handleGenerate} disabled={loading}>
                 {loading ? (
