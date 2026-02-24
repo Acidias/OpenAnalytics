@@ -7,7 +7,7 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 - **packages/tracker** - Client-side tracking script (< 2KB gzipped). Vanilla JS, esbuild. Tracks pageviews, scroll depth, time on page, engagement, outbound clicks, SPA navigation. Outputs `dist/oa.js`. Uses `text/plain` content type to avoid CORS preflights with sendBeacon.
 - **packages/api** - Fastify backend. Event ingestion (`text/plain` JSON), analytics queries, site/funnel/goal CRUD, JWT auth (register/login/me/logout, `?token=` query param restricted to WebSocket live endpoint only). 7-day tokens with Redis-backed session revocation (JTI). Rate-limited auth endpoints. `REGISTRATION_ENABLED` env var toggle. Password policy requires letter + number, blocks common passwords. `JWT_SECRET` is required (no fallback). PostgreSQL + TimescaleDB + Redis pub/sub for live view. Auto-migrates on startup. Serves tracker script at `/oa.js`. Always allows localhost dashboard in CORS regardless of `CORS_ORIGIN` setting. Normalises site domains to bare hostnames on create/update.
 - **packages/dashboard** - Next.js 14 web UI. Tailwind + shadcn/ui + Recharts. JWT auth via localStorage (no NextAuth). All analytics pages, funnel builder, session explorer, live view (REST + WebSocket hybrid). Add Site wizard is 5 steps: Details, Deploy, Setup Guide, Script, Done - persists state in sessionStorage to survive Docker restarts. `/setup` page has Cloudflare Tunnel onboarding guide.
-- **packages/shared** - Shared TypeScript types, Zod validation schemas, and constants used across api and dashboard.
+- **packages/shared** - Shared TypeScript types, Zod validation schemas, constants, and city coordinates fallback (~200 cities) used across api and dashboard.
 
 ## Key Files
 
@@ -21,7 +21,7 @@ Privacy-first, cookie-free web analytics platform. npm workspaces monorepo.
 
 ## Database
 
-PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-applied by `packages/api/src/db/migrate.ts` on startup. Unified `events` hypertable - all tracking data in one table, partitioned by time with continuous aggregates for fast dashboard queries.
+PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-applied by `packages/api/src/db/migrate.ts` on startup. Unified `events` hypertable - all tracking data in one table, partitioned by time with continuous aggregates for fast dashboard queries. Events store city-level geo coordinates (`latitude`, `longitude` REAL columns) from geoip-lite at ingestion time.
 
 ## Demo Seed
 
@@ -29,7 +29,7 @@ PostgreSQL + TimescaleDB. Migrations in `packages/api/src/db/migrations/`, auto-
 
 ## Auto-Provisioned Demo Site
 
-Every user automatically gets a "Demo Site" (`demo.example.com`) with 30 days of realistic analytics on register/login. Identified by `settings @> '{"is_demo": true}'` on the sites table (no migration needed). Site row created synchronously, events/funnels/goals populated in the background. Redis NX lock prevents concurrent provisioning. Includes 500 sessions with funnel-aware paths (~30% follow funnel flows with realistic drop-off), 4 funnels, and 4 goals. Dashboard shows amber "Demo" badge on demo site cards. Code in `packages/api/src/services/provision-demo.ts`, triggered from auth routes.
+Every user automatically gets a "Demo Site" (`demo.example.com`) with 30 days of realistic analytics on register/login. Identified by `settings @> '{"is_demo": true}'` on the sites table (no migration needed). Site row created synchronously, events/funnels/goals populated in the background. Redis NX lock prevents concurrent provisioning. Includes 1500 sessions with funnel-aware paths (~40% follow funnel flows with realistic drop-off), 31 cities across 10 countries with lat/lon coordinates, 4 funnels, and 4 goals. Dashboard shows amber "Demo" badge on demo site cards. Code in `packages/api/src/services/provision-demo.ts`, triggered from auth routes.
 
 ## AI Setup Assistant
 
