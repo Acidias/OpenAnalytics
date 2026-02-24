@@ -73,12 +73,12 @@ services:
     build:
       context: ./packages/dashboard
       args:
-        NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${API_PORT:-3101}}
         NEXT_PUBLIC_TRACKER_URL: ${TRACKER_URL:-}
     environment:
       HOSTNAME: 0.0.0.0
       PORT: ${DASHBOARD_PORT:-3100}
-      NEXT_PUBLIC_API_URL: http://localhost:${API_PORT:-3101}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:${API_PORT:-3101}}
       NEXT_PUBLIC_TRACKER_URL: ${TRACKER_URL:-}
     ports:
       - "${DASHBOARD_PORT:-3100}:${DASHBOARD_PORT:-3100}"
