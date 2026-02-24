@@ -101,7 +101,7 @@ export async function authMiddleware(request: FastifyRequest, reply: FastifyRepl
   }
 }
 
-export function csrfProtection(request: FastifyRequest, reply: FastifyReply) {
+export async function csrfProtection(request: FastifyRequest, reply: FastifyReply) {
   const method = request.method.toUpperCase();
   const stateChanging = method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE';
 
