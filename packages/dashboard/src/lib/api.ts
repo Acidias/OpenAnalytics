@@ -39,8 +39,9 @@ async function fetchAPI<T>(path: string, options?: RequestInit, retried = false)
   }
 
   if (res.status === 401 && typeof window !== "undefined") {
-    const isDemoMode = sessionStorage.getItem("demo_site_id");
-    if (!isDemoMode) {
+    const demoSiteId = sessionStorage.getItem("demo_site_id");
+    const onDemoSite = demoSiteId && window.location.pathname.startsWith(`/dashboard/${demoSiteId}`);
+    if (!onDemoSite) {
       window.location.href = "/login";
     }
     throw new Error("Unauthorised");

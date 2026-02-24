@@ -1,20 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { DashboardSidebar } from "@/components/dashboard/sidebar";
 import { isLoggedIn } from "@/lib/auth";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     let mounted = true;
 
-    // Allow unauthenticated access in demo mode
+    // Allow unauthenticated access only when viewing the demo site
     const demoSiteId = sessionStorage.getItem("demo_site_id");
-    if (demoSiteId) {
+    const siteIdInPath = pathname.match(/^\/dashboard\/([^/]+)/)?.[1];
+    if (demoSiteId && siteIdInPath === demoSiteId) {
       setChecked(true);
       return;
     }
@@ -31,7 +33,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => {
       mounted = false;
     };
-  }, [router]);
+  }, [router, pathname]);
 
   if (!checked) return null;
 

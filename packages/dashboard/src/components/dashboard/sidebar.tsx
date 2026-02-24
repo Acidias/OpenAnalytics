@@ -40,13 +40,14 @@ export function DashboardSidebar() {
   const pathname = usePathname();
   const [isDemoMode, setIsDemoMode] = useState(false);
 
-  useEffect(() => {
-    setIsDemoMode(!!sessionStorage.getItem("demo_site_id"));
-  }, []);
-
   // Extract siteId from path
   const match = pathname.match(/^\/dashboard\/([^/]+)/);
   const siteId = match?.[1];
+
+  useEffect(() => {
+    const demoSiteId = sessionStorage.getItem("demo_site_id");
+    setIsDemoMode(!!demoSiteId && demoSiteId === siteId);
+  }, [siteId]);
   const allNav = siteId ? siteNav(siteId) : mainNav;
   const nav = isDemoMode ? allNav.filter((item) => !demoHiddenLabels.has(item.label)) : allNav;
 
