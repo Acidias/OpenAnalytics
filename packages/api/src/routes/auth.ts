@@ -49,6 +49,12 @@ const refreshSchema = z.object({
   refreshToken: z.string().optional(),
 });
 
+const wsTicketSchema = z.object({
+  siteId: z.string().uuid(),
+});
+
+const WS_TICKET_TTL_SECONDS = 45;
+
 function hashPassword(password: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const salt = crypto.randomBytes(16).toString('hex');
@@ -254,6 +260,31 @@ export default async function authRoutes(fastify: FastifyInstance) {
     } catch {
       return reply.status(401).send({ error: 'Invalid or expired refresh token' });
     }
+  });
+
+  // Issue short-lived one-time websocket ticket
+  fastify.post('/api/auth/ws-ticket', { preHandler: authMiddleware }, async (request, reply) => {
+    const parsed = wsTicketSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'Invalid site ID' });
+    }
+
+    const { siteId } = parsed.data;
+    const result = await query('SELECT id FROM sites WHERE id = $1 AND user_id = $2', [siteId, request.user!.id]);
+    if (result.rows.length === 0) {
+      return reply.status(404).send({ error: 'Site not found' });
+    }
+
+    const ticket = crypto.randomBytes(24).toString('hex');
+    await redis.set(
+      `ws_ticket:${ticket}`,
+      JSON.stringify({ userId: request.user!.id, siteId }),
+      'EX',
+      WS_TICKET_TTL_SECONDS,
+      'NX'
+    );
+
+    return { ticket, expiresInSeconds: WS_TICKET_TTL_SECONDS };
   });
 
   // Logout - revoke current session
